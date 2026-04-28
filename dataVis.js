@@ -71,6 +71,9 @@ function init() {
       // clear existing visualizations
       clear();
 
+      // Show loading indicator
+      showLoadingIndicator();
+
       let reader = new FileReader();
       reader.onloadend = function () {
         console.log("data loaded: ");
@@ -85,6 +88,9 @@ function init() {
         CreateDataTable(parsedData);
         // TODO: possible place to call the dashboard file for Part 2
         initDashboard(parsedData);
+
+        // Hide loading indicator
+        hideLoadingIndicator();
       };
       reader.readAsText(fileInput.files[0]);
     };
@@ -204,6 +210,22 @@ function clear() {
   scatter.selectAll("*").remove();
   radar.selectAll("*").remove();
   dataTable.selectAll("*").remove();
+}
+
+// Show loading indicator
+function showLoadingIndicator() {
+  const indicator = document.getElementById("loadingIndicator");
+  if (indicator) {
+    indicator.classList.remove("hidden");
+  }
+}
+
+// Hide loading indicator
+function hideLoadingIndicator() {
+  const indicator = document.getElementById("loadingIndicator");
+  if (indicator) {
+    indicator.classList.add("hidden");
+  }
 }
 
 //Create Table
