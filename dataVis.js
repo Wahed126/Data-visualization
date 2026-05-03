@@ -34,6 +34,15 @@ let margin, width, height, radius;
 let scatter, radar, dataTable;
 
 // Add additional variables
+let dataset = [];
+let xScale, yScale, sizeScale;
+let radarScales = {};
+let labelDimension = null;
+let selectedItems = [];
+let colorScale = d3.scaleOrdinal(d3.schemeTableau10);
+let selectedItemColors = {};
+let tooltip;
+const ANIMATION_DURATION = 500;
 
 function init() {
   // define size of plots
@@ -47,6 +56,11 @@ function init() {
 
   // data table
   dataTable = d3.select("#dataTable");
+  tooltip = d3
+    .select("body")
+    .append("div")
+    .attr("class", "tooltip")
+    .style("opacity", 0);
 
   // scatterplot SVG container and axes
   scatter = d3
@@ -100,29 +114,60 @@ function init() {
 function initVis(_data) {
   // TODO: parse dimensions (i.e., attributes) from input file
   console.log("Data: ", _data);
+  if (!_data || _data.length === 0) {
+    return;
+  }
+
+  // Parse numeric dimensions dynamically from the uploaded file.
+  const allColumns = Object.keys(_data[0]);
+  labelDimension = allColumns.find((column) =>
+    _data.some((row) => Number.isNaN(Number(row[column]))),
+  );
+  dimensions = allColumns.filter(
+    (column) => _data.every((row) => Number.isFinite(Number(row[column]))),
+  );
+
+  // Keep only valid numeric dimensions and cast values once.
+  dataset = _data.map(function (row, index) {
+    const parsedRow = { ...row, __id: index };
+    dimensions.forEach(function (dimension) {
+      parsedRow[dimension] = Number(row[dimension]);
+    });
+    parsedRow.__label = labelDimension ? row[labelDimension] : "Item " + (index + 1);
+    return parsedRow;
+  });
+  selectedItems = [];
+  selectedItemColors = {};
 
   // y scalings for scatterplot
-  // TODO: set y domain for each dimension
-  let y = d3
+  yScale = d3
     .scaleLinear()
     .range([height - margin.bottom - margin.top, margin.top]);
 
   // x scalings for scatter plot
-  // TODO: set x domain for each dimension
-  let x = d3
+  xScale = d3
     .scaleLinear()
     .range([margin.left, width - margin.left - margin.right]);
 
   // radius scalings for radar chart
-  // TODO: set radius domain for each dimension
-  let r = d3.scaleLinear().range([0, radius]);
+  // 4, 14
+  sizeScale = d3.scaleSqrt().range([4, 14]);
+  radarScales = {};
+  dimensions.forEach(function (dimension) {
+    radarScales[dimension] = d3
+      .scaleLinear()
+      .domain(d3.extent(dataset, function (d) {
+        return d[dimension];
+      }))
+      .range([0, radius * 0.75]);
+  });
 
   // scatterplot axes
   yAxis = scatter
     .append("g")
     .attr("class", "axis")
     .attr("transform", "translate(" + margin.left + ")")
-    .call(d3.axisLeft(y));
+    .call(d3.axisLeft(yScale));
 
   yAxisLabel = yAxis
     .append("text")
@@ -137,7 +182,7 @@ function initVis(_data) {
       "transform",
       "translate(0, " + (height - margin.bottom - margin.top) + ")",
     )
-    .call(d3.axisBottom(x));
+    .call(d3.axisBottom(xScale));
 
   xAxisLabel = xAxis
     .append("text")
@@ -175,7 +220,6 @@ function initVis(_data) {
 
   // TODO: render grid lines in gray
 
-  // TODO: render correct axes labels
   radar
     .selectAll(".axisLabel")
     .data(dimensions)
@@ -189,7 +233,9 @@ function initVis(_data) {
     .attr("y", function (d, i) {
       return radarY(axisRadius(textRadius), i);
     })
-    .text("dimension");
+    .text(function (dimension) {
+      return dimension;
+    });
 
   // init menu for the visual channels
   channels.forEach(function (c) {
@@ -282,14 +328,237 @@ function CreateDataTable(_data) {
   }
 }
 function renderScatterplot() {
-  // TODO: get domain names from menu and label x- and y-axis
-  // TODO: re-render axes
-  // TODO: render dots
+  if (dataset.length === 0 || dimensions.length === 0) {
+    return;
+  }
+
+  const xDimension = readMenu("scatterX");
+  const yDimension = readMenu("scatterY");
+  const sizeDimension = readMenu("size");
+  if (!xDimension || !yDimension || !sizeDimension) {
+    return;
+  }
+
+  // Update scales and axis labels based on the selected dimensions.
+  xScale.domain(d3.extent(dataset, function (d) {
+    return d[xDimension];
+  })).nice();
+  yScale.domain(d3.extent(dataset, function (d) {
+    return d[yDimension];
+  })).nice();
+  sizeScale.domain(d3.extent(dataset, function (d) {
+    return d[sizeDimension];
+  }));
+
+  const transition = d3
+    .transition()
+    .duration(ANIMATION_DURATION)
+    .ease(d3.easeCubicInOut);
+
+  xAxis.transition(transition).call(d3.axisBottom(xScale));
+  yAxis.transition(transition).call(d3.axisLeft(yScale));
+  xAxisLabel.transition(transition).text(xDimension);
+  yAxisLabel.transition(transition).text(yDimension);
+
+  // Render circles and keep visual feedback for selected items.
+  const grayShades = ["#111111", "#2b2b2b", "#454545", "#5f5f5f", "#797979", "#939393"];
+  const dots = scatter
+    .selectAll(".dot")
+    .data(dataset, function (d) {
+      return d.__id;
+    })
+    .join(
+      function (enter) {
+        return enter
+          .append("circle")
+          .attr("class", "dot")
+          .attr("cx", function (d) {
+            return xScale(d[xDimension]);
+          })
+          .attr("cy", function (d) {
+            return yScale(d[yDimension]);
+          })
+          .attr("r", 0)
+          .attr("opacity", 0)
+          .call(function (selection) {
+            selection
+              .transition(transition)
+              .attr("r", function (d) {
+                return sizeScale(d[sizeDimension]);
+              })
+              .attr("opacity", 0.7);
+          });
+      },
+      function (update) {
+        return update.call(function (selection) {
+          selection
+            .transition(transition)
+            .attr("cx", function (d) {
+              return xScale(d[xDimension]);
+            })
+            .attr("cy", function (d) {
+              return yScale(d[yDimension]);
+            })
+            .attr("r", function (d) {
+              return sizeScale(d[sizeDimension]);
+            })
+            .attr("opacity", 0.7);
+        });
+      },
+      function (exit) {
+        return exit
+          .transition(transition)
+          .attr("r", 0)
+          .attr("opacity", 0)
+          .remove();
+      },
+    )
+    .attr("fill", function (d) {
+      if (selectedItems.includes(d.__id)) {
+        return selectedItemColors[d.__id];
+      }
+
+      // Keep unselected marks in grayscale to focus selected items.
+      return grayShades[d.__id % grayShades.length];
+    })
+    .attr("stroke-width", function (d) {
+      return selectedItems.includes(d.__id) ? 2 : 0;
+    })
+    .attr("stroke", "#222")
+    .on("click", function (event, d) {
+      const currentIndex = selectedItems.indexOf(d.__id);
+      if (currentIndex === -1) {
+        selectedItems.push(d.__id);
+        selectedItemColors[d.__id] = colorScale(d.__id);
+      } else {
+        selectedItems.splice(currentIndex, 1);
+        delete selectedItemColors[d.__id];
+      }
+
+      renderScatterplot();
+      renderRadarChart();
+    })
+    .on("mouseover", function (event, d) {
+      const tooltipHtml = Object.keys(d)
+        .filter(function (key) {
+          return !key.startsWith("__");
+        })
+        .map(function (key) {
+          return "<strong>" + key + "</strong>: " + d[key];
+        })
+        .join("<br/>");
+
+      tooltip
+        .style("opacity", 1)
+        .html(tooltipHtml)
+        .style("left", event.pageX + 12 + "px")
+        .style("top", event.pageY + 12 + "px");
+    })
+    .on("mousemove", function (event) {
+      tooltip
+        .style("left", event.pageX + 12 + "px")
+        .style("top", event.pageY + 12 + "px");
+    })
+    .on("mouseout", function () {
+      tooltip.style("opacity", 0);
+    });
+
+  dots
+    .selectAll("title")
+    .data(function (d) {
+      return [d.__label];
+    })
+    .join("title")
+    .text(function (d) {
+      return d;
+    });
 }
 
 function renderRadarChart() {
-  // TODO: show selected items in legend
-  // TODO: render polylines in a unique color
+  if (dataset.length === 0 || dimensions.length === 0) {
+    return;
+  }
+
+  // Show only explicitly selected items in legend and radar chart.
+  const itemIds = selectedItems;
+  const itemsToDraw = dataset.filter(function (d) {
+    return itemIds.includes(d.__id);
+  });
+
+  // Render a simple interactive legend for the currently drawn lines.
+  const legend = d3.select("#legend");
+  legend.html("<b>Legend:</b><br />");
+  const legendEntries = legend
+    .selectAll(".legend-entry")
+    .data(itemsToDraw, function (d) {
+      return d.__id;
+    })
+    .join("div")
+    .attr("class", "legend-entry");
+
+  legendEntries
+    .append("span")
+    .attr("class", "color-circle")
+    .style("background-color", function (d) {
+      return selectedItemColors[d.__id];
+    });
+
+  legendEntries
+    .append("span")
+    .style("margin-left", "6px")
+    .text(function (d) {
+      return d.__label;
+    });
+
+  legendEntries
+    .append("span")
+    .attr("class", "close")
+    .text("x")
+    .on("click", function (event, d) {
+      selectedItems = selectedItems.filter(function (id) {
+        return id !== d.__id;
+      });
+      renderScatterplot();
+      renderRadarChart();
+    });
+
+  // Build one radar polyline per visible item in a unique color.
+  const lineGenerator = d3
+    .lineRadial()
+    .radius(function (entry) {
+      return radarScales[entry.dimension](entry.value);
+    })
+    .angle(function (entry) {
+      return radarAngle(entry.index);
+    })
+    .curve(d3.curveLinearClosed);
+
+  const radarData = itemsToDraw.map(function (item) {
+    return {
+      id: item.__id,
+      label: item.__label,
+      values: dimensions.map(function (dimension, index) {
+        return { dimension: dimension, index: index, value: item[dimension] };
+      }),
+    };
+  });
+
+  radar
+    .selectAll(".radar-shape")
+    .data(radarData, function (d) {
+      return d.id;
+    })
+    .join("path")
+    .attr("class", "radar-shape")
+    .attr("fill", "none")
+    .attr("stroke-width", 2)
+    .attr("opacity", 0.9)
+    .attr("stroke", function (d) {
+      return selectedItemColors[d.id];
+    })
+    .attr("d", function (d) {
+      return lineGenerator(d.values);
+    });
 }
 
 function radarX(radius, index) {
