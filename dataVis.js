@@ -43,6 +43,7 @@ let colorScale = d3.scaleOrdinal(d3.schemeTableau10);
 let selectedItemColors = {};
 let tooltip;
 const ANIMATION_DURATION = 500;
+const LOADING_INDICATOR_DELAY_MS = 180;
 
 function init() {
   // define size of plots
@@ -82,20 +83,26 @@ function init() {
   // read and parse input file
   let fileInput = document.getElementById("upload"),
     readFile = function () {
-      // clear existing visualizations
-      clear();
-
-      // Show loading indicator
-      showLoadingIndicator();
+      // Keep current content visible while loading, and only show indicator
+      // for loads that are slow enough to be noticeable.
+      let loadingIndicatorTimer = setTimeout(function () {
+        showLoadingIndicator();
+      }, LOADING_INDICATOR_DELAY_MS);
 
       let reader = new FileReader();
       reader.onloadend = function () {
+        clearTimeout(loadingIndicatorTimer);
+        loadingIndicatorTimer = null;
+
         console.log("data loaded: ");
         console.log(reader.result);
 
         // Parse CSV data
         let parsedData = d3.csvParse(reader.result);
         console.log("Parsed data: ", parsedData);
+
+        // Replace old content only after the new file is ready.
+        clear();
 
         // Call init functions with the parsed data
         initVis(parsedData);
