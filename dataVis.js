@@ -87,7 +87,7 @@ function init() {
         initVis(parsedData);
         CreateDataTable(parsedData);
         // TODO: possible place to call the dashboard file for Part 2
-        initDashboard(parsedData);
+        initDashboard(null);
 
         // Hide loading indicator
         hideLoadingIndicator();
@@ -274,7 +274,7 @@ function CreateDataTable(_data) {
       .on("mouseover", function () {
         d3.select(this)
           .style("background-color", "#98ffff")
-          .style("cursor", "pointer");
+
       })
       .on("mouseout", function () {
         d3.select(this).style("background-color", "");
