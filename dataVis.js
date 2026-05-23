@@ -15,8 +15,6 @@ let xAxis, yAxis, xAxisLabel, yAxisLabel;
 let radarAxes, radarAxesAngle;
 
 let dimensions = [];
-//*HINT: the first dimension is often a label; you can simply remove the first dimension with
-// dimensions.splice(0, 1);
 
 // the visual channels we can use for the scatterplot
 let channels = ["scatterX", "scatterY", "size"];
@@ -112,7 +110,7 @@ function init() {
 }
 
 function initVis(_data) {
-  // TODO: parse dimensions (i.e., attributes) from input file
+  //  parse dimensions (i.e., attributes) from input file
   console.log("Data: ", _data);
   if (!_data || _data.length === 0) {
     return;
@@ -195,7 +193,38 @@ function initVis(_data) {
   let axisRadius = d3.scaleLinear().range([0, radius]);
   let maxAxisRadius = 0.75,
     textRadius = 0.8;
-  gridRadius = 0.1;
+  const gridRadius = 0.11;
+  const gridLevels = d3
+    .range(gridRadius, maxAxisRadius, gridRadius)
+    .concat([maxAxisRadius]);
+
+  // Gray polygonal grid
+  const gridPolygon = d3
+    .line()
+    .x(function (point) {
+      return point[0];
+    })
+    .y(function (point) {
+      return point[1];
+    })
+    .curve(d3.curveLinearClosed);
+
+  radar
+    .selectAll(".grid-line")
+    .data(gridLevels)
+    .enter()
+    .append("path")
+    .attr("class", "grid-line")
+    .attr("d", function (level) {
+      const levelRadius = axisRadius(level);
+      const points = dimensions.map(function (dimension, index) {
+        return [radarX(levelRadius, index), radarY(levelRadius, index)];
+      });
+      return gridPolygon(points);
+    })
+    .attr("fill", "none")
+    .style("stroke", "gray")
+    .style("stroke-opacity", 0.25);
 
   // radar axes
   radarAxes = radar
@@ -217,8 +246,6 @@ function initVis(_data) {
     })
     .attr("class", "line")
     .style("stroke", "black");
-
-  // TODO: render grid lines in gray
 
   radar
     .selectAll(".axisLabel")
