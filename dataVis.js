@@ -14,14 +14,7 @@ let xAxis, yAxis, xAxisLabel, yAxisLabel;
 // radar chart axes
 let radarAxes, radarAxesAngle;
 
-let dimensions = [
-  "dimension 1",
-  "dimension 2",
-  "dimension 3",
-  "dimension 4",
-  "dimension 5",
-  "dimension 6",
-];
+let dimensions = [];
 //*HINT: the first dimension is often a label; you can simply remove the first dimension with
 // dimensions.splice(0, 1);
 
@@ -387,31 +380,10 @@ function renderScatterplot() {
             return yScale(d[yDimension]);
           })
           .attr("r", 0)
-          .attr("opacity", 0)
-          .call(function (selection) {
-            selection
-              .transition(transition)
-              .attr("r", function (d) {
-                return sizeScale(d[sizeDimension]);
-              })
-              .attr("opacity", 0.7);
-          });
+          .attr("opacity", 0);
       },
       function (update) {
-        return update.call(function (selection) {
-          selection
-            .transition(transition)
-            .attr("cx", function (d) {
-              return xScale(d[xDimension]);
-            })
-            .attr("cy", function (d) {
-              return yScale(d[yDimension]);
-            })
-            .attr("r", function (d) {
-              return sizeScale(d[sizeDimension]);
-            })
-            .attr("opacity", 0.7);
-        });
+        return update;
       },
       function (exit) {
         return exit
@@ -470,6 +442,19 @@ function renderScatterplot() {
     .on("mouseout", function () {
       tooltip.style("opacity", 0);
     });
+
+  dots
+    .transition(transition)
+    .attr("cx", function (d) {
+      return xScale(d[xDimension]);
+    })
+    .attr("cy", function (d) {
+      return yScale(d[yDimension]);
+    })
+    .attr("r", function (d) {
+      return sizeScale(d[sizeDimension]);
+    })
+    .attr("opacity", 0.7);
 
   dots
     .selectAll("title")
