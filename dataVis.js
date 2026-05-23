@@ -306,8 +306,9 @@ function CreateDataTable(_data) {
       .text((d) => d)
       .style("border", "1px solid black")
       .style("padding", "8px")
-      .style("background-color", "#e4ffff")
-      .style("font-weight", "bold");
+      .style("background-color", "#dddddd")
+      .style("font-weight", "bold")
+      .style("text-transform", "uppercase");
 
     // append data rows
     let tbody = table.append("tbody");
@@ -323,10 +324,10 @@ function CreateDataTable(_data) {
       .text((d) => d)
       .style("border", "1px solid black")
       .style("padding", "8px")
-      // add mouseover event with cyan color
+      // add mouseover event with light blue color
       .on("mouseover", function () {
         d3.select(this)
-          .style("background-color", "#98ffff")
+          .style("background-color", "#1bbfbf66")
 
       })
       .on("mouseout", function () {
