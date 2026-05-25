@@ -482,16 +482,6 @@ function renderScatterplot() {
       return sizeScale(d[sizeDimension]);
     })
     .attr("opacity", 0.7);
-
-  dots
-    .selectAll("title")
-    .data(function (d) {
-      return [d.__label];
-    })
-    .join("title")
-    .text(function (d) {
-      return d;
-    });
 }
 
 function renderRadarChart() {
