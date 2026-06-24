@@ -35,6 +35,8 @@ let selectedItemColors = {};
 let tooltip;
 const ANIMATION_DURATION = 500;
 const LOADING_INDICATOR_DELAY_MS = 180;
+const DATA_TABLE_ROW_LIMIT = 100;
+const BASIC_VIS_SAMPLE_LIMIT = 5000;
 
 function init() {
   // define size of plots
@@ -85,12 +87,14 @@ function init() {
         clearTimeout(loadingIndicatorTimer);
         loadingIndicatorTimer = null;
 
-        console.log("data loaded: ");
-        console.log(reader.result);
-
-        // Parse CSV data
-        let parsedData = d3.csvParse(reader.result);
-        console.log("Parsed data: ", parsedData);
+        // Parse CSV, TSV, or tab-separated TXT data. Avoid logging the raw file
+        // content because the alloy dataset is hundreds of MB and would freeze
+        // the browser console.
+        let parsedData = parseUploadedData(
+          reader.result,
+          fileInput.files[0].name,
+        );
+        console.log("Parsed rows:", parsedData.length);
 
         // Replace old content only after the new file is ready.
         clear();
@@ -98,8 +102,8 @@ function init() {
         // Call init functions with the parsed data
         initVis(parsedData);
         CreateDataTable(parsedData);
-        // TODO: possible place to call the dashboard file for Part 2
-        initDashboard(null);
+        // Initialize the coordinated dashboard with the parsed data.
+        initDashboard(parsedData);
 
         // Hide loading indicator
         hideLoadingIndicator();
@@ -109,29 +113,103 @@ function init() {
   fileInput.addEventListener("change", readFile);
 }
 
+function parseUploadedData(fileText, fileName) {
+  const delimiter = detectDelimiter(fileText, fileName);
+  const parser = d3.dsvFormat(delimiter);
+
+  // The Zenodo .txt file is tab-separated and contains trailing tab characters
+  // after the last real column. Removing trailing delimiters prevents D3 from
+  // creating empty artificial columns.
+  const sanitizedText = sanitizeDelimitedText(fileText, delimiter);
+  return parser.parse(sanitizedText);
+}
+
+function detectDelimiter(fileText, fileName) {
+  const lowerFileName = fileName.toLowerCase();
+  const firstLine = fileText.split(/\r?\n/, 1)[0] || "";
+  const delimiterCounts = {
+    "\t": (firstLine.match(/\t/g) || []).length,
+    ",": (firstLine.match(/,/g) || []).length,
+    ";": (firstLine.match(/;/g) || []).length,
+  };
+
+  if (lowerFileName.endsWith(".tsv") || lowerFileName.endsWith(".txt")) {
+    return "\t";
+  }
+
+  if (lowerFileName.endsWith(".csv")) {
+    return ",";
+  }
+
+  return Object.keys(delimiterCounts).reduce(function (
+    bestDelimiter,
+    delimiter,
+  ) {
+    return delimiterCounts[delimiter] > delimiterCounts[bestDelimiter]
+      ? delimiter
+      : bestDelimiter;
+  }, ",");
+}
+
+function sanitizeDelimitedText(fileText, delimiter) {
+  const normalizedText = fileText.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+  if (delimiter === "\t") {
+    return normalizedText
+      .split("\n")
+      .map(function (line) {
+        return line.replace(/\t+$/g, "");
+      })
+      .join("\n");
+  }
+
+  return normalizedText;
+}
+
+function sampleRowsForBasicVis(rows, maxRows) {
+  if (rows.length <= maxRows) {
+    return rows;
+  }
+
+  const step = rows.length / maxRows;
+  return d3.range(maxRows).map(function (sampleIndex) {
+    return rows[Math.floor(sampleIndex * step)];
+  });
+}
+
 function initVis(_data) {
   //  parse dimensions (i.e., attributes) from input file
-  console.log("Data: ", _data);
+  console.log(
+    "Initializing basic visualization with rows:",
+    _data ? _data.length : 0,
+  );
   if (!_data || _data.length === 0) {
     return;
   }
 
+  // Part 1 renders one SVG circle per row. Sampling keeps the page responsive
+  // for the 100k+ row alloy dataset while preserving the full data for the table
+  // preview and dashboard preprocessing.
+  const dataForBasicVis = sampleRowsForBasicVis(_data, BASIC_VIS_SAMPLE_LIMIT);
+
   // Parse numeric dimensions dynamically from the uploaded file.
-  const allColumns = Object.keys(_data[0]);
+  const allColumns = Object.keys(dataForBasicVis[0]);
   labelDimension = allColumns.find((column) =>
-    _data.some((row) => Number.isNaN(Number(row[column]))),
+    dataForBasicVis.some((row) => Number.isNaN(Number(row[column]))),
   );
-  dimensions = allColumns.filter(
-    (column) => _data.every((row) => Number.isFinite(Number(row[column]))),
+  dimensions = allColumns.filter((column) =>
+    dataForBasicVis.every((row) => Number.isFinite(Number(row[column]))),
   );
 
   // Keep only valid numeric dimensions and cast values once.
-  dataset = _data.map(function (row, index) {
+  dataset = dataForBasicVis.map(function (row, index) {
     const parsedRow = { ...row, __id: index };
     dimensions.forEach(function (dimension) {
       parsedRow[dimension] = Number(row[dimension]);
     });
-    parsedRow.__label = labelDimension ? row[labelDimension] : "Item " + (index + 1);
+    parsedRow.__label = labelDimension
+      ? row[labelDimension]
+      : "Item " + (index + 1);
     return parsedRow;
   });
   selectedItems = [];
@@ -154,9 +232,11 @@ function initVis(_data) {
   dimensions.forEach(function (dimension) {
     radarScales[dimension] = d3
       .scaleLinear()
-      .domain(d3.extent(dataset, function (d) {
-        return d[dimension];
-      }))
+      .domain(
+        d3.extent(dataset, function (d) {
+          return d[dimension];
+        }),
+      )
       .range([0, radius * 0.75]);
   });
 
@@ -330,11 +410,22 @@ function CreateDataTable(_data) {
       .style("font-weight", "bold")
       .style("text-transform", "uppercase");
 
+    if (_data.length > DATA_TABLE_ROW_LIMIT) {
+      dataTable
+        .append("p")
+        .attr("class", "optional")
+        .text(
+          "Showing the first " +
+            DATA_TABLE_ROW_LIMIT +
+            " rows in the table to keep the page responsive. All rows are still used by the visualizations.",
+        );
+    }
+
     // append data rows
     let tbody = table.append("tbody");
     tbody
       .selectAll("tr")
-      .data(_data)
+      .data(_data.slice(0, DATA_TABLE_ROW_LIMIT))
       .enter()
       .append("tr")
       .selectAll("td")
@@ -346,9 +437,7 @@ function CreateDataTable(_data) {
       .style("padding", "8px")
       // add mouseover event with light blue color
       .on("mouseover", function () {
-        d3.select(this)
-          .style("background-color", "#1bbfbf66")
-
+        d3.select(this).style("background-color", "#1bbfbf66");
       })
       .on("mouseout", function () {
         d3.select(this).style("background-color", "");
@@ -368,15 +457,25 @@ function renderScatterplot() {
   }
 
   // Update scales and axis labels based on the selected dimensions.
-  xScale.domain(d3.extent(dataset, function (d) {
-    return d[xDimension];
-  })).nice();
-  yScale.domain(d3.extent(dataset, function (d) {
-    return d[yDimension];
-  })).nice();
-  sizeScale.domain(d3.extent(dataset, function (d) {
-    return d[sizeDimension];
-  }));
+  xScale
+    .domain(
+      d3.extent(dataset, function (d) {
+        return d[xDimension];
+      }),
+    )
+    .nice();
+  yScale
+    .domain(
+      d3.extent(dataset, function (d) {
+        return d[yDimension];
+      }),
+    )
+    .nice();
+  sizeScale.domain(
+    d3.extent(dataset, function (d) {
+      return d[sizeDimension];
+    }),
+  );
 
   const transition = d3
     .transition()
@@ -389,7 +488,14 @@ function renderScatterplot() {
   yAxisLabel.transition(transition).text(yDimension);
 
   // Render circles and keep visual feedback for selected items.
-  const grayShades = ["#111111", "#2b2b2b", "#454545", "#5f5f5f", "#797979", "#939393"];
+  const grayShades = [
+    "#111111",
+    "#2b2b2b",
+    "#454545",
+    "#5f5f5f",
+    "#797979",
+    "#939393",
+  ];
   const dots = scatter
     .selectAll(".dot")
     .data(dataset, function (d) {

@@ -13,7 +13,9 @@ body {
     background: white;
     padding: 40px;
     border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 0 0 9999px rgba(0, 0, 0, 0.5);
+    box-shadow:
+        0 4px 6px rgba(0, 0, 0, 0.1),
+        0 0 0 9999px rgba(0, 0, 0, 0.5);
     text-align: center;
     z-index: 9999;
     display: flex;
@@ -36,8 +38,12 @@ body {
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .loading-indicator p {
@@ -178,12 +184,114 @@ fieldset {
 div.tooltip {
     position: absolute;
     text-align: left;
-    padding: .2rem;
+    padding: 0.2rem;
     margin: 1rem;
     background: #313639;
     color: #f9f9f9;
     border: 0px;
     border-radius: 8px;
     pointer-events: none;
-    font-size: .7rem;
+    font-size: 0.7rem;
+}
+
+.dashboard-chart-container {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+}
+
+.dashboard-chart-container h2,
+.dashboard-chart-container h4 {
+    margin: 4px 0 8px 0;
+}
+
+.dashboard-control-panel {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    margin: 8px 0;
+    padding: 8px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+}
+
+.dashboard-control-label {
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.dashboard-select {
+    max-width: 210px;
+    padding: 2px 4px;
+    font-size: 12px;
+}
+
+.dashboard-chart-note {
+    fill: #4b5563;
+    font-size: 11px;
+}
+
+.axis-title {
+    fill: #111827;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.chart-message,
+.chart-message-svg {
+    color: #4b5563;
+    fill: #4b5563;
+    font-size: 13px;
+}
+
+.pcp-line {
+    pointer-events: none;
+}
+
+.pcp-axis-label {
+    font-size: 10px;
+    font-weight: bold;
+}
+
+.dashboard-dot {
+    cursor: pointer;
+}
+
+.dashboard-dot:hover {
+    stroke-width: 2px;
+    opacity: 0.9;
+}
+
+.histogram-bar:hover {
+    opacity: 1;
+}
+
+.radar-dashboard-legend {
+    margin-top: 6px;
+    padding: 8px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #f8fafc;
+    font-size: 12px;
+}
+
+.radar-dashboard-legend-entry {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.dashboard-remove-selection {
+    margin-left: auto;
+    border: 1px solid #9ca3af;
+    background: white;
+    border-radius: 3px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.dashboard-remove-selection:hover {
+    background: #e5e7eb;
 }
