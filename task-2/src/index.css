@@ -1,1 +1,117 @@
 @import "tailwindcss";
+
+/* Custom Scrollbar for clean data-table and selector panels */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* D3 Tooltip Styles */
+.tooltip {
+  position: absolute;
+  text-align: left;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  pointer-events: none;
+  font-size: 12px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  z-index: 100;
+  max-width: 250px;
+  line-height: 1.4;
+  backdrop-filter: blur(4px);
+  transition: opacity 0.15s ease-out;
+}
+
+/* Parallel Coordinates styles */
+.pcp-line {
+  fill: none;
+  stroke-linejoin: round;
+  transition: stroke 0.2s ease, stroke-width 0.2s ease, opacity 0.2s ease;
+}
+
+.pcp-line.active {
+  stroke-width: 1.2px;
+}
+
+.pcp-axis path,
+.pcp-axis line {
+  fill: none;
+  stroke: #64748b;
+  stroke-width: 1px;
+  shape-rendering: crispEdges;
+}
+
+.pcp-axis text {
+  font-family: inherit;
+  font-size: 11px;
+  fill: #334155;
+  user-select: none;
+}
+
+.pcp-brush .selection {
+  fill: #3b82f6;
+  fill-opacity: 0.2;
+  stroke: #2563eb;
+  stroke-width: 1px;
+}
+
+.pcp-brush .handle {
+  fill: #ffffff;
+  stroke: #2563eb;
+  stroke-width: 1.5px;
+  rx: 3px;
+  ry: 3px;
+}
+
+/* D3 axis styling */
+.d3-axis path,
+.d3-axis line {
+  stroke: #cbd5e1;
+}
+
+.d3-axis text {
+  font-family: inherit;
+  font-size: 11px;
+  fill: #64748b;
+  user-select: none;
+}
+
+/* Hover and active states for interactive dots */
+.dashboard-dot {
+  transition: r 0.2s ease, stroke 0.2s ease, stroke-width 0.2s ease, opacity 0.2s ease;
+}
+
+.dashboard-dot:hover {
+  cursor: pointer;
+  opacity: 0.95 !important;
+}
+
+.histogram-bar {
+  transition: fill 0.2s ease, opacity 0.2s ease;
+}
+
+.histogram-bar:hover {
+  opacity: 0.95;
+}
+
+.radar-shape {
+  transition: fill-opacity 0.2s ease, stroke-width 0.2s ease;
+}
+
+.radar-shape:hover {
+  stroke-width: 3.5px;
+}
