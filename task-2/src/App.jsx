@@ -1,7 +1,7 @@
 import { useState, useTransition, useEffect, useCallback } from "react";
 import * as d3 from "d3";
-import CoordinatedDashboard from "./components/CoordinatedDashboard";
-import AdvancedDashboard from "./components/AdvancedDashboard";
+import Dashboard from "./components/Dashboard";
+import { streamParseTable, buildDisplaySample, computeFilterMask } from "./utils/dataLoader";
 import { Upload, FileText, AlertCircle, RefreshCw } from "lucide-react";
 
 // Pure helper constants and functions moved outside the component function
@@ -49,78 +49,21 @@ const shortenLabel = (label, maxLength = 16) => {
   return label.slice(0, maxLength - 1) + "…";
 };
 
-// Detect delimiter based on first line counts
-const detectDelimiter = (text, name) => {
-  const lowerName = name.toLowerCase();
-  const firstLine = text.split(/\r?\n/, 1)[0] || "";
-
-  if (lowerName.endsWith(".tsv") || lowerName.endsWith(".txt")) {
-    return "\t";
-  }
-  if (lowerName.endsWith(".csv")) {
-    return ",";
-  }
-
-  const counts = {
-    "\t": (firstLine.match(/\t/g) || []).length,
-    ",": (firstLine.match(/,/g) || []).length,
-    ";": (firstLine.match(/;/g) || []).length,
-  };
-
-  return Object.keys(counts).reduce((best, delim) =>
-    counts[delim] > counts[best] ? delim : best, ","
-  );
-};
-
-// Clean trailing delimiter issues (e.g. trailing tabs in Zenodo TXT files)
-const sanitizeDelimitedText = (text, delimiter) => {
-  const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  if (delimiter === "\t") {
-    return normalized
-      .split("\n")
-      .map((line) => line.replace(/\t+$/g, ""))
-      .join("\n");
-  }
-  return normalized;
-};
-
-// Deterministic uniform sampling to maintain sub-second rendering speeds
-const sampleRows = (rows, maxRows = 5000) => {
-  if (rows.length <= maxRows) return rows;
-  const step = rows.length / maxRows;
-  return d3.range(maxRows).map((idx) => rows[Math.floor(idx * step)]);
-};
-
 const colorScale = d3.scaleOrdinal(d3.schemeTableau10);
 
 export default function App() {
-  const [dataset, setDataset] = useState([]);
-  const [filteredData, setFilteredData] = useState([]);
+  // Columnar typed-array table holding ALL rows (~91 MB for the full dataset)
+  const [table, setTable] = useState(null);
+  // Deterministic display sample as row objects (marks only; stats use table)
+  const [sampleRows, setSampleRows] = useState([]);
+  const [filteredSampleRows, setFilteredSampleRows] = useState([]);
+  const [filterMask, setFilterMask] = useState(null);
+  const [filteredCount, setFilteredCount] = useState(0);
   const [numericColumns, setNumericColumns] = useState([]);
   const [filename, setFilename] = useState("");
-  const [activeView, setActiveView] = useState(() => {
-    const hash = window.location.hash;
-    return hash === "#density" ? "density" : "standard";
-  });
-  // Start with loading = true by default as we attempt to auto-load the workspace dataset
   const [isLoading, setIsLoading] = useState(true);
+  const [loadProgress, setLoadProgress] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
-
-  // Sync state with URL hash
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash;
-      setActiveView(hash === "#density" ? "density" : "standard");
-    };
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
-  }, []);
-
-  useEffect(() => {
-    if (window.location.hash !== `#${activeView}`) {
-      window.location.hash = activeView;
-    }
-  }, [activeView]);
 
   // Coordinated states
   const [brushes, setBrushes] = useState({});
@@ -130,93 +73,52 @@ export default function App() {
   // Use transition for filtering to keep UI responsive
   const [, startTransition] = useTransition();
 
-  // Load and parse uploaded dataset helper wrapped in useCallback
-  const parseAndLoadData = useCallback((text, name) => {
-    const delimiter = detectDelimiter(text, name);
-    const sanitized = sanitizeDelimitedText(text, delimiter);
-    const parser = d3.dsvFormat(delimiter);
-    const parsed = parser.parse(sanitized);
-
-    if (parsed.length === 0) {
-      throw new Error("The file is empty or could not be parsed.");
-    }
-
-    const columns = Object.keys(parsed[0]);
-    // Identify numeric columns
-    const numCols = columns.filter((col) => {
-      return parsed.some((row) => {
-        const val = Number(row[col]);
-        return Number.isFinite(val) && row[col] !== "";
-      });
-    });
-
-    if (numCols.length === 0) {
-      throw new Error("No numeric columns found in the dataset.");
-    }
-
-    // Clean & cast rows
-    const casted = parsed.map((row, idx) => {
-      const parsedRow = {
-        __id: idx,
-        __label: `Alloy ${idx + 1}`,
-      };
-
-      columns.forEach((col) => {
-        const numericValue = row[col] === "" ? NaN : Number(row[col]);
-
-        // Treat NaNs in phase fraction (Vf_...) columns as 0 (means phase did not form)
-        if (!Number.isFinite(numericValue) && col.startsWith("Vf_")) {
-          parsedRow[col] = 0;
-        } else if (Number.isFinite(numericValue)) {
-          parsedRow[col] = numericValue;
-        } else {
-          parsedRow[col] = row[col];
-        }
+  // Stream-parse a byte stream into the columnar table and derive view state
+  const loadFromStream = useCallback(async (byteStream, totalBytes, name) => {
+    setIsLoading(true);
+    setErrorMsg("");
+    setLoadProgress(0);
+    try {
+      const parsedTable = await streamParseTable(byteStream, totalBytes, (fraction) => {
+        setLoadProgress(Math.round(fraction * 100));
       });
 
-      return parsedRow;
-    });
+      // Numeric columns = columns with at least one finite value in ANY row
+      const numCols = parsedTable.columns.filter(
+        (_, j) => parsedTable.stats.finiteCount[j] > 0
+      );
+      if (numCols.length === 0) {
+        throw new Error("No numeric columns found in the dataset.");
+      }
 
-    // Sample for rendering
-    const sampled = sampleRows(casted, 5000);
+      const sample = buildDisplaySample(parsedTable);
 
-    setDataset(sampled);
-    setFilteredData(sampled);
-    setNumericColumns(numCols);
-    setFilename(name);
+      setTable(parsedTable);
+      setSampleRows(sample);
+      setFilteredSampleRows(sample);
+      setFilterMask(null);
+      setFilteredCount(parsedTable.rowCount);
+      setNumericColumns(numCols);
+      setFilename(name);
 
-    // Reset coordinated states
-    setBrushes({});
-    setSelectedIds([]);
-    setSelectedColors({});
+      // Reset coordinated states
+      setBrushes({});
+      setSelectedIds([]);
+      setSelectedColors({});
+      setIsLoading(false);
+    } catch (err) {
+      // An aborted load (StrictMode remount / dataset switch) is not an error
+      // and must not touch state the replacing load already owns
+      if (err?.name === "AbortError") return;
+      console.error(err);
+      setErrorMsg(err.message || "An error occurred parsing the file.");
+      setIsLoading(false);
+    }
   }, []);
 
   const processFile = (file) => {
-    setIsLoading(true);
-    setErrorMsg("");
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const text = event.target?.result;
-        if (typeof text !== "string") {
-          throw new Error("File content is not valid text");
-        }
-        parseAndLoadData(text, file.name);
-      } catch (err) {
-        console.error(err);
-        setErrorMsg(err.message || "An error occurred parsing the file.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    reader.onerror = () => {
-      setErrorMsg("Error reading file.");
-      setIsLoading(false);
-    };
-
-    reader.readAsText(file);
+    // File.stream() avoids materializing the whole file as a giant string
+    loadFromStream(file.stream(), file.size, file.name);
   };
 
   const handleFileUpload = (e) => {
@@ -225,26 +127,36 @@ export default function App() {
     processFile(file);
   };
 
-  // Automatically fetch the default alloy dataset served by Vite if available on mount
+  // Automatically stream the default alloy dataset served by Vite on mount.
+  // The AbortController cancels the duplicate request StrictMode fires when it
+  // double-mounts effects in development — without it two concurrent 223 MB
+  // parses compete for the main thread.
   useEffect(() => {
-    fetch("/Dataset_VisContest_Rapid_Alloy_development_v3.txt")
+    const controller = new AbortController();
+    fetch("/Dataset_VisContest_Rapid_Alloy_development_v3.txt", {
+      signal: controller.signal,
+    })
       .then((res) => {
-        if (!res.ok) throw new Error("Default dataset not found on Vite server.");
-        return res.text();
-      })
-      .then((text) => {
-        parseAndLoadData(text, "Dataset_VisContest_Rapid_Alloy_development_v3.txt");
+        if (!res.ok || !res.body) {
+          throw new Error("Default dataset not found on Vite server.");
+        }
+        const totalBytes = Number(res.headers.get("Content-Length")) || 0;
+        return loadFromStream(
+          res.body,
+          totalBytes,
+          "Dataset_VisContest_Rapid_Alloy_development_v3.txt"
+        );
       })
       .catch((err) => {
-        console.log("Auto-load of default dataset bypassed, waiting for manual upload:", err.message);
-        setIsLoading(false); // set to false since we are skipping auto-load and showing uploader
-      })
-      .finally(() => {
-        // Only turn off loading in case of success (error case is handled above)
-        // If loaded, parseAndLoadData resets states and loading can end
+        if (err.name === "AbortError") return;
+        console.log(
+          "Auto-load of default dataset bypassed, waiting for manual upload:",
+          err.message
+        );
         setIsLoading(false);
       });
-  }, [parseAndLoadData]);
+    return () => controller.abort();
+  }, [loadFromStream]);
 
   // File Drag & Drop Handlers
   const handleDragOver = (e) => {
@@ -261,8 +173,11 @@ export default function App() {
 
   // Clear loaded dataset to upload a new one
   const handleClearFile = () => {
-    setDataset([]);
-    setFilteredData([]);
+    setTable(null);
+    setSampleRows([]);
+    setFilteredSampleRows([]);
+    setFilterMask(null);
+    setFilteredCount(0);
     setNumericColumns([]);
     setFilename("");
     setBrushes({});
@@ -270,7 +185,8 @@ export default function App() {
     setSelectedColors({});
   };
 
-  // Coordinated Brushing Update
+  // Coordinated Brushing Update: the mask/count are evaluated against the
+  // FULL table; the sample rows are filtered for mark-level views
   const handleBrushChange = (dimension, range) => {
     const updatedBrushes = { ...brushes };
     if (range) {
@@ -280,22 +196,30 @@ export default function App() {
     }
     setBrushes(updatedBrushes);
 
-    // Compute updated filter using React Transitions to prevent layout lag
     startTransition(() => {
+      if (!table) return;
       if (Object.keys(updatedBrushes).length === 0) {
-        setFilteredData(dataset);
+        setFilterMask(null);
+        setFilteredCount(table.rowCount);
+        setFilteredSampleRows(sampleRows);
         return;
       }
 
-      const activeDimensions = Object.keys(updatedBrushes);
-      const filtered = dataset.filter((row) => {
-        return activeDimensions.every((dim) => {
-          const val = row[dim];
-          const brushRange = updatedBrushes[dim];
-          return Number.isFinite(val) && val >= brushRange[0] && val <= brushRange[1];
-        });
-      });
-      setFilteredData(filtered);
+      const { mask, count } = computeFilterMask(table, updatedBrushes);
+      setFilterMask(mask);
+      setFilteredCount(count);
+      setFilteredSampleRows(sampleRows.filter((row) => mask[row.__id] === 1));
+    });
+  };
+
+  // Remove all axis filters at once
+  const handleClearBrushes = () => {
+    setBrushes({});
+    startTransition(() => {
+      if (!table) return;
+      setFilterMask(null);
+      setFilteredCount(table.rowCount);
+      setFilteredSampleRows(sampleRows);
     });
   };
 
@@ -328,52 +252,28 @@ export default function App() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans select-none antialiased">
+    <main className="min-h-screen text-slate-800 flex flex-col font-sans select-none antialiased">
       {/* Tooltip Target */}
       <div className="tooltip opacity-0 pointer-events-none absolute" />
 
       {/* Header */}
-      <header className="bg-white border-b border-slate-200/80 shrink-0 sticky top-0 z-50 shadow-sm/5">
-        <div className=" w-11/12 mx-auto px-6 py-4 flex justify-between items-center">
+      <header className="bg-white/70 backdrop-blur-xl border-b border-slate-200/60 shrink-0 sticky top-0 z-50">
+        <div className="w-11/12 mx-auto px-6 py-3.5 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <span className="w-8 h-8 rounded-lg bg-blue-500 text-white font-bold flex items-center justify-center text-sm shadow-md shadow-blue-500/25">
+            <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 text-white font-bold flex items-center justify-center text-sm shadow-lg shadow-indigo-500/30 ring-1 ring-white/40">
               Al
             </span>
             <div>
               <h1 className="text-base font-bold text-slate-900 tracking-tight leading-tight">
                 Alloy Design Explorer
               </h1>
-              <p className="text-[10px] text-slate-500 font-medium">
+              <p className="text-[10px] text-slate-500 font-medium tracking-wide">
                 IEEE SciVis Contest 2025 Tooling
               </p>
             </div>
           </div>
 
-          {/* Design Comparison View Toggle */}
-          {dataset.length > 0 && (
-            <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
-              <button
-                onClick={() => setActiveView("standard")}
-                className={`px-3.5 py-1.5 rounded-md font-semibold cursor-pointer transition-all duration-200 ${activeView === "standard"
-                  ? "bg-white text-slate-800 shadow-sm border border-slate-200/50"
-                  : "text-slate-500 hover:text-slate-800"
-                  }`}
-              >
-                Design A: Standard
-              </button>
-              <button
-                onClick={() => setActiveView("density")}
-                className={`px-3.5 py-1.5 rounded-md font-semibold cursor-pointer transition-all duration-200 ${activeView === "density"
-                  ? "bg-white text-slate-800 shadow-sm border border-slate-200/50"
-                  : "text-slate-500 hover:text-slate-800"
-                  }`}
-              >
-                Design B: Density-Aware
-              </button>
-            </div>
-          )}
-
-          <div className="text-[11px] text-slate-400 font-semibold tracking-wider uppercase">
+          <div className="text-[10px] text-indigo-500/80 font-bold tracking-[0.18em] uppercase px-3 py-1.5 rounded-full border border-indigo-100 bg-indigo-50/60">
             Framework Task 2
           </div>
         </div>
@@ -382,52 +282,53 @@ export default function App() {
       {/* Main Content Area */}
       <div className="grow flex flex-col items-stretch">
         {isLoading ? (
-          <div className="grow flex flex-col items-center justify-center gap-4 py-20">
-            <RefreshCw className="w-10 h-10 text-blue-500 animate-spin" />
-            <div className="text-center">
-              <h3 className="text-sm font-bold text-slate-800">Processing alloy dataset...</h3>
-              <p className="text-xs text-slate-400 mt-1 max-w-[280px]">
-                Validating columns, casting values, and generating deterministic samples.
-              </p>
+          <div className="grow flex flex-col items-center justify-center py-20 px-4">
+            <div className="surface-card px-10 py-9 flex flex-col items-center gap-4 max-w-sm w-full">
+              <div className="relative w-14 h-14">
+                <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-blue-500 via-indigo-500 to-violet-500 opacity-20 blur-md animate-pulse" />
+                <RefreshCw className="absolute inset-0 m-auto w-8 h-8 text-indigo-500 animate-spin" />
+              </div>
+              <div className="text-center">
+                <h3 className="text-sm font-bold text-slate-800">
+                  Streaming alloy dataset… {loadProgress}%
+                </h3>
+                <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
+                  Parsing rows directly into a compact typed-array table — the full file is
+                  never held in memory as text.
+                </p>
+              </div>
+              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-blue-500 to-violet-500 transition-all rounded-full"
+                  style={{ width: `${loadProgress}%` }}
+                />
+              </div>
             </div>
           </div>
-        ) : dataset.length > 0 ? (
-          activeView === "standard" ? (
-            <CoordinatedDashboard
-              data={dataset}
-              filteredData={filteredData}
-              brushes={brushes}
-              onBrushChange={handleBrushChange}
-              selectedIds={selectedIds}
-              onToggleSelected={handleToggleSelected}
-              selectedColors={selectedColors}
-              numericColumns={numericColumns}
-              colorForColumnGroup={colorForColumnGroup}
-              shortenLabel={shortenLabel}
-              filename={filename}
-              onClearFile={handleClearFile}
-            />
-          ) : (
-            <AdvancedDashboard
-              data={dataset}
-              filteredData={filteredData}
-              brushes={brushes}
-              onBrushChange={handleBrushChange}
-              selectedIds={selectedIds}
-              onToggleSelected={handleToggleSelected}
-              selectedColors={selectedColors}
-              numericColumns={numericColumns}
-              colorForColumnGroup={colorForColumnGroup}
-              shortenLabel={shortenLabel}
-              filename={filename}
-              onClearFile={handleClearFile}
-            />
-          )
+        ) : table ? (
+          <Dashboard
+            table={table}
+            filterMask={filterMask}
+            filteredCount={filteredCount}
+            data={sampleRows}
+            filteredData={filteredSampleRows}
+            brushes={brushes}
+            onBrushChange={handleBrushChange}
+            onClearBrushes={handleClearBrushes}
+            selectedIds={selectedIds}
+            onToggleSelected={handleToggleSelected}
+            selectedColors={selectedColors}
+            numericColumns={numericColumns}
+            colorForColumnGroup={colorForColumnGroup}
+            shortenLabel={shortenLabel}
+            filename={filename}
+            onClearFile={handleClearFile}
+          />
         ) : (
           /* File Uploader Landing Page */
           <div className="grow flex items-center justify-center py-16 px-4">
-            <div className="max-w-xl w-full bg-white border border-slate-200 rounded-3xl p-8 shadow-sm flex flex-col items-stretch text-center">
-              <div className="mx-auto w-12 h-12 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center mb-4 border border-blue-100 shadow-sm">
+            <div className="max-w-xl w-full surface-card p-8 flex flex-col items-stretch text-center">
+              <div className="mx-auto w-12 h-12 bg-gradient-to-br from-blue-500 to-violet-600 text-white rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/25 ring-1 ring-white/40">
                 <Upload className="w-5 h-5" />
               </div>
 
@@ -435,14 +336,15 @@ export default function App() {
                 Upload Alloy Simulation Data
               </h2>
               <p className="text-xs text-slate-400 mt-1.5 max-w-sm mx-auto leading-relaxed">
-                Supports standard tab-separated (.txt, .tsv) or comma-separated (.csv) files from simulation runs.
+                Supports tab-separated (.txt, .tsv) simulation exports of any size — files are
+                streamed, so even multi-hundred-MB datasets load safely.
               </p>
 
               {/* Drag & Drop Area */}
               <div
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
-                className="mt-6 border-2 border-dashed border-slate-200 hover:border-blue-400/80 rounded-2xl p-8 bg-slate-50/50 hover:bg-blue-50/10 cursor-pointer transition-all duration-300 group flex flex-col items-center justify-center relative"
+                className="mt-6 border-2 border-dashed border-slate-200 hover:border-indigo-400/70 rounded-2xl p-8 bg-slate-50/60 hover:bg-indigo-50/30 cursor-pointer transition-all duration-300 group flex flex-col items-center justify-center relative"
               >
                 <input
                   type="file"
@@ -484,7 +386,7 @@ export default function App() {
       </div>
 
       {/* Footer credits */}
-      <footer className="bg-white border-t border-slate-200/80 shrink-0 text-center py-4 text-[11px] text-slate-400 font-medium">
+      <footer className="bg-white/60 backdrop-blur border-t border-slate-200/60 shrink-0 text-center py-4 text-[11px] text-slate-400 font-medium">
         University of Passau &bull; Faculty of Computer Science and Mathematics &bull; Chair of Cognitive Sensor Systems
       </footer>
     </main>

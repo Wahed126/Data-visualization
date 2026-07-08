@@ -54,9 +54,9 @@ export default function RadarChart({
         .attr("x", 0)
         .attr("y", 0)
         .attr("text-anchor", "middle")
-        .attr("fill", "#64748b")
-        .style("font-size", "14px")
-        .text("Click points in the scatter/bubble chart to compare alloys");
+        .attr("fill", "#94a3b8")
+        .style("font-size", "12px")
+        .text("Click alloys in the embedding or heatmap drill-down to compare");
       return;
     }
 
@@ -173,9 +173,39 @@ export default function RadarChart({
     .filter(Boolean);
 
   return (
-    <div className="flex flex-col md:flex-row h-full items-stretch">
-      {/* SVG Container */}
-      <div ref={containerRef} className="flex-grow relative min-h-[220px]">
+    <div className="flex flex-col h-full min-h-0">
+      {/* Selected candidate chips (kept inside the card flow, wraps as needed) */}
+      {selectedRows.length > 0 && (
+        <div className="shrink-0 flex flex-wrap items-center gap-1.5 pb-2 border-b border-slate-100">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">
+            Candidates {selectedRows.length}/5
+          </span>
+          {selectedRows.map((row) => (
+            <span
+              key={row.__id}
+              className="inline-flex items-center gap-1.5 pl-2 pr-1 py-0.5 bg-white border border-slate-200 rounded-full shadow-sm text-[11px] font-medium text-slate-700"
+              style={{ borderColor: selectedColors[row.__id] }}
+            >
+              <span
+                className="w-2 h-2 rounded-full shrink-0"
+                style={{ backgroundColor: selectedColors[row.__id] }}
+              />
+              {row.__label}
+              <button
+                onClick={() => onToggleSelected(row.__id)}
+                className="w-4 h-4 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center font-bold cursor-pointer transition-colors leading-none"
+                title="Remove alloy"
+              >
+                &times;
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* SVG Container — min-w-0/overflow-hidden let flexbox shrink it instead
+          of pushing siblings out of the card */}
+      <div ref={containerRef} className="flex-grow relative min-h-[220px] min-w-0 overflow-hidden">
         <svg
           ref={svgRef}
           width={size.width}
@@ -183,41 +213,6 @@ export default function RadarChart({
           className="block select-none mx-auto"
         />
       </div>
-
-      {/* Interactive Legend Side Panel */}
-      {selectedRows.length > 0 && (
-        <div className="w-full md:w-56 shrink-0 flex flex-col justify-start border-t md:border-t-0 md:border-l border-slate-100 p-3 md:p-4 bg-slate-50/50">
-          <div className="text-[10px] md:text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-            Selected Candidates
-          </div>
-          <div className="flex flex-col gap-1.5 max-h-[100px] md:max-h-[200px] overflow-y-auto pr-1">
-            {selectedRows.map((row) => (
-              <div
-                key={row.__id}
-                className="flex items-center justify-between gap-2 p-1.5 bg-white border border-slate-200/60 rounded-md shadow-sm text-xs hover:border-slate-300 transition-colors"
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <span
-                    className="w-2.5 h-2.5 rounded-full shrink-0 border border-black/10"
-                    style={{ backgroundColor: selectedColors[row.__id] }}
-                  />
-                  <span className="font-medium text-slate-700 truncate">{row.__label}</span>
-                </div>
-                <button
-                  onClick={() => onToggleSelected(row.__id)}
-                  className="w-4 h-4 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center font-bold text-sm cursor-pointer transition-colors"
-                  title="Remove alloy"
-                >
-                  &times;
-                </button>
-              </div>
-            ))}
-          </div>
-          <div className="text-[10px] text-slate-400 mt-2 italic">
-            Showing {selectedRows.length} of 5 max. Compare properties radial layout.
-          </div>
-        </div>
-      )}
     </div>
   );
 }

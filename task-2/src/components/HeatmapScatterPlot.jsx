@@ -3,6 +3,8 @@ import * as d3 from "d3";
 import { ArrowLeft, ZoomIn } from "lucide-react";
 
 export default function HeatmapScatterPlot({
+  table,
+  filterMask,
   filteredData,
   numericColumns,
   selectedIds,
@@ -40,82 +42,105 @@ export default function HeatmapScatterPlot({
     return () => resizeObserver.disconnect();
   }, []);
 
-  // Filter rows that have finite numbers in chosen columns
-  const validRows = useMemo(() => {
-    return filteredData.filter(
-      (row) =>
-        Number.isFinite(row[xColumn]) &&
-        Number.isFinite(row[yColumn]) &&
-        Number.isFinite(row[sizeColumn])
-    );
-  }, [filteredData, xColumn, yColumn, sizeColumn]);
-
-  // Compute domains
+  // Stable domains from the FULL dataset column stats, so the grid does not
+  // jump around while brushing
   const bounds = useMemo(() => {
-    if (validRows.length === 0) return null;
-    const xExtent = d3.extent(validRows, (d) => d[xColumn]);
-    const yExtent = d3.extent(validRows, (d) => d[yColumn]);
-    const sizeExtent = d3.extent(validRows, (d) => d[sizeColumn]);
-
-    return {
-      xRange: xExtent[0] === xExtent[1] ? [xExtent[0] - 1, xExtent[0] + 1] : xExtent,
-      yRange: yExtent[0] === yExtent[1] ? [yExtent[0] - 1, yExtent[0] + 1] : yExtent,
-      sizeRange: sizeExtent[0] === sizeExtent[1] ? [sizeExtent[0] - 1, sizeExtent[0] + 1] : sizeExtent,
+    if (!table) return null;
+    const xIdx = table.columns.indexOf(xColumn);
+    const yIdx = table.columns.indexOf(yColumn);
+    const sIdx = table.columns.indexOf(sizeColumn);
+    if (xIdx < 0 || yIdx < 0 || sIdx < 0) return null;
+    const range = (idx) => {
+      const lo = table.stats.min[idx];
+      const hi = table.stats.max[idx];
+      if (!Number.isFinite(lo) || !Number.isFinite(hi)) return null;
+      return lo === hi ? [lo - 1, lo + 1] : [lo, hi];
     };
-  }, [validRows, xColumn, yColumn, sizeColumn]);
+    const xRange = range(xIdx);
+    const yRange = range(yIdx);
+    const sizeRange = range(sIdx);
+    if (!xRange || !yRange || !sizeRange) return null;
+    return { xRange, yRange, sizeRange, xIdx, yIdx };
+  }, [table, xColumn, yColumn, sizeColumn]);
 
   // Binning details: 20x20 grid
   const GRID_SIZE = 20;
 
+  // Bin ALL table rows that pass the current filter mask — the density shown
+  // is the true density of the complete 324k-row dataset, not of a sample
   const binsData = useMemo(() => {
-    if (!bounds || validRows.length === 0) return [];
-    
-    // Create scales to bin points
-    const binXScale = d3.scaleLinear().domain(bounds.xRange).range([0, GRID_SIZE]);
-    const binYScale = d3.scaleLinear().domain(bounds.yRange).range([0, GRID_SIZE]);
+    if (!bounds || !table) return [];
+    const { columns, matrix, rowCount } = table;
+    const columnCount = columns.length;
+    const { xIdx, yIdx, xRange, yRange } = bounds;
+    const xSpan = xRange[1] - xRange[0];
+    const ySpan = yRange[1] - yRange[0];
 
-    // Create 2D grid
-    const grid = Array.from({ length: GRID_SIZE }, () =>
-      Array.from({ length: GRID_SIZE }, () => ({
-        points: [],
-      }))
-    );
+    const counts = new Float64Array(GRID_SIZE * GRID_SIZE);
+    const sumX = new Float64Array(GRID_SIZE * GRID_SIZE);
+    const sumY = new Float64Array(GRID_SIZE * GRID_SIZE);
 
-    validRows.forEach((row) => {
-      // Find coordinates in bin grid space
-      let colIdx = Math.floor(binXScale(row[xColumn]));
-      let rowIdx = Math.floor(binYScale(row[yColumn]));
-
-      // Clamp values
+    for (let i = 0; i < rowCount; i++) {
+      if (filterMask && filterMask[i] === 0) continue;
+      const offset = i * columnCount;
+      const xVal = matrix[offset + xIdx];
+      const yVal = matrix[offset + yIdx];
+      if (!Number.isFinite(xVal) || !Number.isFinite(yVal)) continue;
+      let colIdx = Math.floor(((xVal - xRange[0]) / xSpan) * GRID_SIZE);
+      let rowIdx = Math.floor(((yVal - yRange[0]) / ySpan) * GRID_SIZE);
       colIdx = Math.max(0, Math.min(GRID_SIZE - 1, colIdx));
       rowIdx = Math.max(0, Math.min(GRID_SIZE - 1, rowIdx));
-
-      grid[rowIdx][colIdx].points.push(row);
-    });
+      const cell = rowIdx * GRID_SIZE + colIdx;
+      counts[cell] += 1;
+      sumX[cell] += xVal;
+      sumY[cell] += yVal;
+    }
 
     const flatBins = [];
     for (let r = 0; r < GRID_SIZE; r++) {
       for (let c = 0; c < GRID_SIZE; c++) {
-        const points = grid[r][c].points;
-        if (points.length > 0) {
+        const cell = r * GRID_SIZE + c;
+        if (counts[cell] > 0) {
           flatBins.push({
             row: r,
             col: c,
-            count: points.length,
-            points,
-            // Average values for labels
-            avgX: d3.mean(points, (d) => d[xColumn]),
-            avgY: d3.mean(points, (d) => d[yColumn]),
+            count: counts[cell],
+            avgX: sumX[cell] / counts[cell],
+            avgY: sumY[cell] / counts[cell],
           });
         }
       }
     }
     return flatBins;
-  }, [validRows, bounds, xColumn, yColumn]);
+  }, [table, filterMask, bounds]);
+
+  // Drill-down points come from the display sample (only individual marks are
+  // sampled; the density grid above always reflects the full data)
+  const cellPoints = useMemo(() => {
+    if (!selectedCell || !bounds) return [];
+    const { xRange, yRange } = bounds;
+    const xSpan = xRange[1] - xRange[0];
+    const ySpan = yRange[1] - yRange[0];
+    return filteredData.filter((row) => {
+      const xVal = row[xColumn];
+      const yVal = row[yColumn];
+      if (!Number.isFinite(xVal) || !Number.isFinite(yVal) || !Number.isFinite(row[sizeColumn]))
+        return false;
+      const colIdx = Math.max(
+        0,
+        Math.min(GRID_SIZE - 1, Math.floor(((xVal - xRange[0]) / xSpan) * GRID_SIZE))
+      );
+      const rowIdx = Math.max(
+        0,
+        Math.min(GRID_SIZE - 1, Math.floor(((yVal - yRange[0]) / ySpan) * GRID_SIZE))
+      );
+      return colIdx === selectedCell.col && rowIdx === selectedCell.row;
+    });
+  }, [selectedCell, bounds, filteredData, xColumn, yColumn, sizeColumn]);
 
   // Redraw when states change
   useEffect(() => {
-    if (!svgRef.current || !bounds || validRows.length === 0) return;
+    if (!svgRef.current || !bounds || binsData.length === 0) return;
 
     const { width, height } = size;
     const margins = { top: 25, right: 30, bottom: 65, left: 65 };
@@ -221,7 +246,7 @@ export default function HeatmapScatterPlot({
       .style("cursor", selectedCell ? "default" : "zoom-in")
       .on("click", (event, d) => {
         if (!selectedCell) {
-          setSelectedCell({ col: d.col, row: d.row, points: d.points });
+          setSelectedCell({ col: d.col, row: d.row });
         }
       })
       .on("mouseover", (event, d) => {
@@ -247,10 +272,7 @@ export default function HeatmapScatterPlot({
 
     // --- ZOOMED DRILL-DOWN SCATTER OVERLAY ---
     if (selectedCell) {
-      const activeCellData = binsData.find(
-        (b) => b.col === selectedCell.col && b.row === selectedCell.row
-      );
-      const pointsToRender = activeCellData ? activeCellData.points : [];
+      const pointsToRender = cellPoints;
 
       const scatterGroup = plot.append("g").attr("class", "drilldown-scatter");
 
@@ -291,7 +313,7 @@ export default function HeatmapScatterPlot({
           tooltip.style("opacity", 0);
         });
     }
-  }, [size, bounds, binsData, xColumn, yColumn, sizeColumn, selectedCell, selectedIds, selectedColors, radarDimensions, validRows, onToggleSelected]);
+  }, [size, bounds, binsData, cellPoints, xColumn, yColumn, sizeColumn, selectedCell, selectedIds, selectedColors, radarDimensions, onToggleSelected]);
 
   return (
     <div className="flex flex-col h-full">
@@ -306,7 +328,7 @@ export default function HeatmapScatterPlot({
                 setXColumn(e.target.value);
                 setSelectedCell(null);
               }}
-              className="bg-white border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-blue-500 cursor-pointer font-medium max-w-[120px] truncate"
+              className="control-select text-xs max-w-[120px] truncate"
             >
               {numericColumns.map((col) => (
                 <option key={col} value={col}>
@@ -324,7 +346,7 @@ export default function HeatmapScatterPlot({
                 setYColumn(e.target.value);
                 setSelectedCell(null);
               }}
-              className="bg-white border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-blue-500 cursor-pointer font-medium max-w-[120px] truncate"
+              className="control-select text-xs max-w-[120px] truncate"
             >
               {numericColumns.map((col) => (
                 <option key={col} value={col}>
@@ -342,7 +364,7 @@ export default function HeatmapScatterPlot({
                 setSizeColumn(e.target.value);
                 setSelectedCell(null);
               }}
-              className="bg-white border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-blue-500 cursor-pointer font-medium max-w-[120px] truncate"
+              className="control-select text-xs max-w-[120px] truncate"
             >
               {numericColumns.map((col) => (
                 <option key={col} value={col}>
@@ -372,7 +394,7 @@ export default function HeatmapScatterPlot({
 
       {/* SVG Container */}
       <div ref={containerRef} className="w-full flex-grow relative min-h-[300px]">
-        {validRows.length === 0 && (
+        {binsData.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center text-slate-400 text-sm">
             No rows match current filters.
           </div>
