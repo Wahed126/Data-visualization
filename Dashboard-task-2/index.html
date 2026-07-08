@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alloy Analysis Dashboard</title>
+    <!-- Modern Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-content">
+            <h1>Alloy Property Analyzer</h1>
+            <p>Data Visualization of Chemical, Phase, and Mechanical Properties</p>
+        </div>
+        <div class="upload-controls">
+            <span id="app-status" style="font-weight: 600;">Connecting to Backend...</span>
+            <div class="progress-container" id="progress-container">
+                <div class="progress-bar" id="progress-bar" style="width: 100%; animation: pulse 1.5s infinite;"></div>
+            </div>
+        </div>
+    </header>
+
+    <main class="dashboard-grid">
+        <!-- Top row: Parallel Coordinates (Full width) -->
+        <section class="chart-card full-width" id="parallel-coords-card">
+            <div class="card-header">
+                <h2>Pipeline Overview (Parallel Coordinates)</h2>
+                <p>Trace relationships from Inputs to Properties.</p>
+            </div>
+            <div class="chart-container" id="parallel-coords-container"></div>
+        </section>
+
+        <!-- Middle row: Composition and Properties -->
+        <section class="chart-card" id="bar-chart-card">
+            <div class="card-header">
+                <h2>Chemical Composition & Phases</h2>
+                <p>Average composition across selected samples.</p>
+            </div>
+            <div class="chart-container" id="bar-chart-container"></div>
+        </section>
+
+        <section class="chart-card" id="radar-chart-card">
+            <div class="card-header">
+                <h2>Material Properties Profile</h2>
+                <p>Compare mechanical and thermophysical properties.</p>
+            </div>
+            <div class="chart-container" id="radar-chart-container"></div>
+        </section>
+
+        <!-- Bottom row: Correlation and Trade-offs -->
+        <section class="chart-card" id="scatter-plot-card">
+            <div class="card-header">
+                <h2>Correlation Analysis</h2>
+                <p>Explore direct relationships between two variables.</p>
+                <div class="controls-row" id="scatter-controls"></div>
+            </div>
+            <div class="chart-container" id="scatter-plot-container"></div>
+        </section>
+
+        <section class="chart-card" id="bubble-chart-card">
+            <div class="card-header">
+                <h2>Property Trade-offs</h2>
+                <p>Compare 3-4 properties simultaneously.</p>
+                <div class="controls-row" id="bubble-controls"></div>
+            </div>
+            <div class="chart-container" id="bubble-chart-container"></div>
+        </section>
+    </main>
+
+    <!-- Custom Scripts -->
+    <script src="js/api.js"></script>
+    <script src="js/domUtils.js"></script>
+    <script src="js/charts/parallelCoords.js"></script>
+    <script src="js/charts/barChart.js"></script>
+    <script src="js/charts/radarChart.js"></script>
+    <script src="js/charts/scatterPlot.js"></script>
+    <script src="js/charts/bubbleChart.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
