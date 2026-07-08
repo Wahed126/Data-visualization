@@ -112,7 +112,7 @@ export default function CoordinatedDashboard({
       : numericColumns.slice(0, 6);
 
   return (
-    <div className="flex flex-col gap-6 max-w-7xl mx-auto px-4 py-6">
+    <div className="flex flex-col gap-6 w-full mx-auto px-4 py-6">
       {/* Dashboard Top Metadata Bar */}
       <div className="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -137,7 +137,7 @@ export default function CoordinatedDashboard({
       {/* Grid Dashboard */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Chart 1: Parallel Coordinates */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md/5 transition-shadow duration-300 flex flex-col h-[460px]">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md/5 transition-shadow duration-300 flex flex-col min-h-[460px] lg:h-[460px]">
           <div className="flex justify-between items-start mb-1">
             <div>
               <h2 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
@@ -168,7 +168,7 @@ export default function CoordinatedDashboard({
         </div>
 
         {/* Chart 2: Scatter / Bubble Plot */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md/5 transition-shadow duration-300 flex flex-col h-[460px]">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md/5 transition-shadow duration-300 flex flex-col min-h-[460px] lg:h-[460px]">
           <div>
             <h2 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
               <Eye className="w-4 h-4 text-slate-500" />
@@ -197,7 +197,7 @@ export default function CoordinatedDashboard({
         </div>
 
         {/* Chart 3: Histogram */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md/5 transition-shadow duration-300 flex flex-col h-[460px]">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md/5 transition-shadow duration-300 flex flex-col min-h-[460px] lg:h-[460px]">
           <div>
             <h2 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
               <BarChart2 className="w-4 h-4 text-slate-500" />
@@ -218,7 +218,7 @@ export default function CoordinatedDashboard({
         </div>
 
         {/* Chart 4: Radar Comparison */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md/5 transition-shadow duration-300 flex flex-col h-[460px]">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md/5 transition-shadow duration-300 flex flex-col min-h-[460px] lg:h-[460px]">
           <div>
             <h2 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
               <Info className="w-4 h-4 text-slate-500" />

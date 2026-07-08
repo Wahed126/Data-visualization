@@ -53,7 +53,7 @@ const shortenLabel = (label, maxLength = 16) => {
 const detectDelimiter = (text, name) => {
   const lowerName = name.toLowerCase();
   const firstLine = text.split(/\r?\n/, 1)[0] || "";
-  
+
   if (lowerName.endsWith(".tsv") || lowerName.endsWith(".txt")) {
     return "\t";
   }
@@ -163,7 +163,7 @@ export default function App() {
 
       columns.forEach((col) => {
         const numericValue = row[col] === "" ? NaN : Number(row[col]);
-        
+
         // Treat NaNs in phase fraction (Vf_...) columns as 0 (means phase did not form)
         if (!Number.isFinite(numericValue) && col.startsWith("Vf_")) {
           parsedRow[col] = 0;
@@ -184,7 +184,7 @@ export default function App() {
     setFilteredData(sampled);
     setNumericColumns(numCols);
     setFilename(name);
-    
+
     // Reset coordinated states
     setBrushes({});
     setSelectedIds([]);
@@ -305,7 +305,7 @@ export default function App() {
     if (idx === -1) {
       const updatedIds = [...selectedIds];
       const updatedColors = { ...selectedColors };
-      
+
       // Limit to 5 selections
       if (selectedIds.length >= 5) {
         const removed = updatedIds.shift();
@@ -314,14 +314,14 @@ export default function App() {
 
       updatedIds.push(id);
       updatedColors[id] = colorScale(id);
-      
+
       setSelectedIds(updatedIds);
       setSelectedColors(updatedColors);
     } else {
       const updatedIds = selectedIds.filter((item) => item !== id);
       const updatedColors = { ...selectedColors };
       delete updatedColors[id];
-      
+
       setSelectedIds(updatedIds);
       setSelectedColors(updatedColors);
     }
@@ -334,7 +334,7 @@ export default function App() {
 
       {/* Header */}
       <header className="bg-white border-b border-slate-200/80 shrink-0 sticky top-0 z-50 shadow-sm/5">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+        <div className=" w-11/12 mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <span className="w-8 h-8 rounded-lg bg-blue-500 text-white font-bold flex items-center justify-center text-sm shadow-md shadow-blue-500/25">
               Al
@@ -354,21 +354,19 @@ export default function App() {
             <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
               <button
                 onClick={() => setActiveView("standard")}
-                className={`px-3.5 py-1.5 rounded-md font-semibold cursor-pointer transition-all duration-200 ${
-                  activeView === "standard"
-                    ? "bg-white text-slate-800 shadow-sm border border-slate-200/50"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
+                className={`px-3.5 py-1.5 rounded-md font-semibold cursor-pointer transition-all duration-200 ${activeView === "standard"
+                  ? "bg-white text-slate-800 shadow-sm border border-slate-200/50"
+                  : "text-slate-500 hover:text-slate-800"
+                  }`}
               >
                 Design A: Standard
               </button>
               <button
                 onClick={() => setActiveView("density")}
-                className={`px-3.5 py-1.5 rounded-md font-semibold cursor-pointer transition-all duration-200 ${
-                  activeView === "density"
-                    ? "bg-white text-slate-800 shadow-sm border border-slate-200/50"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
+                className={`px-3.5 py-1.5 rounded-md font-semibold cursor-pointer transition-all duration-200 ${activeView === "density"
+                  ? "bg-white text-slate-800 shadow-sm border border-slate-200/50"
+                  : "text-slate-500 hover:text-slate-800"
+                  }`}
               >
                 Design B: Density-Aware
               </button>
@@ -382,9 +380,9 @@ export default function App() {
       </header>
 
       {/* Main Content Area */}
-      <div className="flex-grow flex flex-col items-stretch">
+      <div className="grow flex flex-col items-stretch">
         {isLoading ? (
-          <div className="flex-grow flex flex-col items-center justify-center gap-4 py-20">
+          <div className="grow flex flex-col items-center justify-center gap-4 py-20">
             <RefreshCw className="w-10 h-10 text-blue-500 animate-spin" />
             <div className="text-center">
               <h3 className="text-sm font-bold text-slate-800">Processing alloy dataset...</h3>
@@ -427,12 +425,12 @@ export default function App() {
           )
         ) : (
           /* File Uploader Landing Page */
-          <div className="flex-grow flex items-center justify-center py-16 px-4">
+          <div className="grow flex items-center justify-center py-16 px-4">
             <div className="max-w-xl w-full bg-white border border-slate-200 rounded-3xl p-8 shadow-sm flex flex-col items-stretch text-center">
               <div className="mx-auto w-12 h-12 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center mb-4 border border-blue-100 shadow-sm">
                 <Upload className="w-5 h-5" />
               </div>
-              
+
               <h2 className="text-lg font-bold text-slate-800">
                 Upload Alloy Simulation Data
               </h2>

@@ -117,7 +117,7 @@ export default function AdvancedDashboard({
       : numericColumns.slice(0, 6);
 
   return (
-    <div className="flex flex-col gap-6 max-w-7xl mx-auto px-4 py-6">
+    <div className="flex flex-col gap-6 w-full mx-auto px-4 py-6">
       {/* Dashboard Top Metadata Bar */}
       <div className="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>

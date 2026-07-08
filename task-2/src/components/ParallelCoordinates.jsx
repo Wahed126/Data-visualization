@@ -22,8 +22,8 @@ export default function ParallelCoordinates({
       const { width, height } = entries[0].contentRect;
       // Keep a minimum size and aspect ratio
       setSize({
-        width: Math.max(width, 400),
-        height: Math.max(height || 360, 360),
+        width: Math.max(width, 200),
+        height: Math.max(height || 200, 200),
       });
     });
 

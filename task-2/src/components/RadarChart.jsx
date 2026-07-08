@@ -20,8 +20,8 @@ export default function RadarChart({
       if (!entries || entries.length === 0) return;
       const { width, height } = entries[0].contentRect;
       setSize({
-        width: Math.max(width, 400),
-        height: Math.max(height || 360, 360),
+        width: Math.max(width, 200),
+        height: Math.max(height || 200, 200),
       });
     });
 
@@ -175,7 +175,7 @@ export default function RadarChart({
   return (
     <div className="flex flex-col md:flex-row h-full items-stretch">
       {/* SVG Container */}
-      <div ref={containerRef} className="flex-grow relative min-h-[300px]">
+      <div ref={containerRef} className="flex-grow relative min-h-[220px]">
         <svg
           ref={svgRef}
           width={size.width}
@@ -186,11 +186,11 @@ export default function RadarChart({
 
       {/* Interactive Legend Side Panel */}
       {selectedRows.length > 0 && (
-        <div className="w-full md:w-56 shrink-0 flex flex-col justify-center border-t md:border-t-0 md:border-l border-slate-100 p-4 bg-slate-50/50">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+        <div className="w-full md:w-56 shrink-0 flex flex-col justify-start border-t md:border-t-0 md:border-l border-slate-100 p-3 md:p-4 bg-slate-50/50">
+          <div className="text-[10px] md:text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
             Selected Candidates
           </div>
-          <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1">
+          <div className="flex flex-col gap-1.5 max-h-[100px] md:max-h-[200px] overflow-y-auto pr-1">
             {selectedRows.map((row) => (
               <div
                 key={row.__id}
@@ -213,7 +213,7 @@ export default function RadarChart({
               </div>
             ))}
           </div>
-          <div className="text-[10px] text-slate-400 mt-3 italic">
+          <div className="text-[10px] text-slate-400 mt-2 italic">
             Showing {selectedRows.length} of 5 max. Compare properties radial layout.
           </div>
         </div>

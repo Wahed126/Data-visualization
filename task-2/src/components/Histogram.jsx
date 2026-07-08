@@ -18,8 +18,8 @@ export default function Histogram({
       if (!entries || entries.length === 0) return;
       const { width, height } = entries[0].contentRect;
       setSize({
-        width: Math.max(width, 400),
-        height: Math.max(height || 360, 360),
+        width: Math.max(width, 200),
+        height: Math.max(height || 200, 200),
       });
     });
 

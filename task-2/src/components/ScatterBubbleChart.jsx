@@ -26,8 +26,8 @@ export default function ScatterBubbleChart({
       if (!entries || entries.length === 0) return;
       const { width, height } = entries[0].contentRect;
       setSize({
-        width: Math.max(width, 400),
-        height: Math.max(height || 360, 360),
+        width: Math.max(width, 200),
+        height: Math.max(height || 200, 200),
       });
     });
 
@@ -204,6 +204,10 @@ export default function ScatterBubbleChart({
 
     // Exit old dots
     dots.exit().transition().duration(300).attr("r", 0).remove();
+
+    return () => {
+      d3.select("body").selectAll(".tooltip").remove();
+    };
   }, [size, filteredData, xColumn, yColumn, sizeColumn, selectedIds, selectedColors, radarDimensions, onToggleSelected]);
 
   return (
