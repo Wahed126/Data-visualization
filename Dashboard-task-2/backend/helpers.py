@@ -255,3 +255,71 @@ class DataHelper:
             "numerical":  self.numerical_cols,
             "categorical": self.categorical_cols,
         }
+
+    def get_correlation_matrix(self) -> dict:
+        """
+        Compute Pearson correlation between:
+          rows    = inputs + elements  (drivers)
+          columns = phases + mech + thermo  (outputs)
+
+        Returns a structure ready for D3 heatmap rendering:
+        {
+          "rows": [...col names...],
+          "cols": [...col names...],
+          "values": [[r00, r01, ...], [r10, r11, ...], ...]
+        }
+        Computed on up to 10,000 rows for speed.
+        """
+        self.load_data()
+
+        row_cols = [c for c in INPUT_COLS + ELEMENT_COLS if c in self.df.columns]
+        col_cols = [c for c in PHASE_COLS + MECH_COLS + THERMO_COLS if c in self.df.columns]
+
+        sample = self.df if len(self.df) <= 10000 else self.df.sample(10000, random_state=42)
+
+        matrix = []
+        for rc in row_cols:
+            row_values = []
+            for cc in col_cols:
+                pair = sample[[rc, cc]].dropna()
+                if len(pair) < 10:
+                    row_values.append(None)
+                else:
+                    r = float(pair[rc].corr(pair[cc]))
+                    row_values.append(None if np.isnan(r) else round(r, 4))
+            matrix.append(row_values)
+
+        return {"rows": row_cols, "cols": col_cols, "values": matrix}
+
+    def get_sensitivity(self, target_col: str) -> list[dict]:
+        """
+        Compute Spearman correlation between every INPUT + ELEMENT column
+        and the given target_col. Returns sorted list:
+          [{"col": "Si", "r": 0.87, "abs_r": 0.87}, ...]
+
+        Used by the Sensitivity Bar Chart.
+        Computed on up to 10,000 rows for speed.
+        """
+        self.load_data()
+
+        if target_col not in self.df.columns:
+            raise ValueError(f"Column '{target_col}' not found in dataset")
+
+        driver_cols = [c for c in INPUT_COLS + ELEMENT_COLS if c in self.df.columns]
+
+        sample = self.df if len(self.df) <= 10000 else self.df.sample(10000, random_state=42)
+        target = sample[target_col]
+
+        results = []
+        for dc in driver_cols:
+            pair = sample[[dc, target_col]].dropna()
+            if len(pair) < 10:
+                continue
+            r = float(pair[dc].corr(pair[target_col], method='spearman'))
+            if not np.isnan(r):
+                results.append({"col": dc, "r": round(r, 4), "abs_r": round(abs(r), 4)})
+
+        # Sort by absolute correlation descending
+        results.sort(key=lambda x: x["abs_r"], reverse=True)
+        return results
+

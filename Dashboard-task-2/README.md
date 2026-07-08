@@ -14,13 +14,13 @@ D3.js + Flask dashboard for visualizing a 212MB alloy dataset across 5 chart typ
 ### Step 1 — Create a virtual environment *(skip if* `.venv` *already exists)*
 
 ```bash
-python -m venv C:\Users\wahee\Desktop\DV\.venv
+python -m venv C:\Users\wahee\Desktop\DV\Data-visualization\.venv
 ```
 
 ### Step 2 — Install dependencies
 
 ```bash
-C:\Users\wahee\Desktop\DV\.venv\Scripts\pip.exe install -r backend\requirements.txt
+C:\Users\wahee\Desktop\DV\Data-visualization\.venv\Scripts\pip.exe install -r backend\requirements.txt
 ```
 
 Installs: `Flask`, `flask-cors`, `pandas`, `numpy`.
@@ -39,7 +39,7 @@ backend/data/data.txt
 
 ```bash
 cd C:\Users\wahee\Desktop\DV\Data-visualization\Dashboard-task-2
-C:\Users\wahee\Desktop\DV\.venv\Scripts\python.exe backend\app.py
+C:\Users\wahee\Desktop\DV\Data-visualization\.venv\Scripts\python.exe backend\app.py
 ```
 
 Wait until the terminal shows:
@@ -53,7 +53,7 @@ Loaded XXXXX rows × 70 columns
 
 ```bash
 cd C:\Users\wahee\Desktop\DV\Data-visualization\Dashboard-task-2
-C:\Users\wahee\Desktop\DV\.venv\Scripts\python.exe -m http.server 3000
+C:\Users\wahee\Desktop\DV\Data-visualization\.venv\Scripts\python.exe -m http.server 3000
 ```
 
 ### Step 6 — Open the dashboard

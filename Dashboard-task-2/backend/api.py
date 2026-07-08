@@ -105,6 +105,33 @@ def chart_bubble():
         return error_response(str(e))
 
 
+@api_bp.route('/chart/heatmap', methods=['GET'])
+def chart_heatmap():
+    """
+    Returns Pearson correlation matrix (inputs × outputs).
+    Used by the Correlation Heatmap view.
+    """
+    try:
+        return jsonify(data_helper.get_correlation_matrix())
+    except Exception as e:
+        return error_response(str(e))
+
+
+@api_bp.route('/chart/sensitivity', methods=['GET'])
+def chart_sensitivity():
+    """
+    Returns Spearman correlation of all inputs vs a specific target output.
+    Used by the Sensitivity Bar Chart.
+    """
+    try:
+        target = request.args.get('target')
+        if not target:
+            return error_response("Query param 'target' is required", 400)
+        return jsonify(data_helper.get_sensitivity(target))
+    except Exception as e:
+        return error_response(str(e))
+
+
 # ──────────────────────────────────────────────────────────────────
 # Columns list — used by frontend dropdowns
 # ──────────────────────────────────────────────────────────────────

@@ -68,4 +68,18 @@ const api = {
      */
     getBubbleData: (x, y, z, n = 5000) =>
         apiFetch(`/chart/bubble?x=${encodeURIComponent(x)}&y=${encodeURIComponent(y)}&z=${encodeURIComponent(z)}&n=${n}`),
+
+    /**
+     * Chart 6 — Correlation Heatmap (New)
+     * Returns Pearson correlation matrix between inputs and outputs.
+     */
+    getHeatmapData: () => apiFetch('/chart/heatmap'),
+
+    /**
+     * Chart 7 — Sensitivity Bar Chart (New)
+     * Returns Spearman correlation of inputs against a specific target.
+     * @param {string} target - The property column to analyze
+     */
+    getSensitivityData: (target) =>
+        apiFetch(`/chart/sensitivity?target=${encodeURIComponent(target)}`),
 };

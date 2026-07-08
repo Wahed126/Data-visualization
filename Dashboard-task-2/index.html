@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Alloy Analysis Dashboard</title>
+    <title>Alloy Discovery Dashboard</title>
     <!-- Modern Google Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,72 +16,84 @@
 <body>
     <header class="app-header">
         <div class="header-content">
-            <h1>Alloy Property Analyzer</h1>
-            <p>Data Visualization of Chemical, Phase, and Mechanical Properties</p>
+            <h1>Alloy Discovery Dashboard</h1>
+            <p>SciVis 2025: Scrap-to-Alloy Pipeline Exploration</p>
+        </div>
+        <div class="filter-controls">
+            <div id="selection-status">All Alloys (100,000+)</div>
+            <button id="reset-brush-btn" disabled>Reset Selection</button>
+            <label for="color-by-select">Color by:</label>
+            <select id="color-by-select"></select>
         </div>
         <div class="upload-controls">
             <span id="app-status" style="font-weight: 600;">Connecting to Backend...</span>
-            <div class="progress-container" id="progress-container">
-                <div class="progress-bar" id="progress-bar" style="width: 100%; animation: pulse 1.5s infinite;"></div>
-            </div>
         </div>
     </header>
 
     <main class="dashboard-grid">
-        <!-- Top row: Parallel Coordinates (Full width) -->
+        <!-- View 1: Pipeline Overview -->
         <section class="chart-card full-width" id="parallel-coords-card">
             <div class="card-header">
-                <h2>Pipeline Overview (Parallel Coordinates)</h2>
-                <p>Trace relationships from Inputs to Properties.</p>
+                <h2>1. Pipeline Overview (Parallel Coordinates)</h2>
+                <p>Brush axes to filter candidates across all views.</p>
             </div>
             <div class="chart-container" id="parallel-coords-container"></div>
         </section>
 
-        <!-- Middle row: Composition and Properties -->
-        <section class="chart-card" id="bar-chart-card">
+        <!-- View 2: Correlation Heatmap -->
+        <section class="chart-card" id="heatmap-card">
             <div class="card-header">
-                <h2>Chemical Composition & Phases</h2>
-                <p>Average composition across selected samples.</p>
+                <h2>2. Correlation Heatmap</h2>
+                <p>Click any cell to explore that relationship.</p>
             </div>
-            <div class="chart-container" id="bar-chart-container"></div>
+            <div class="chart-container" id="heatmap-container"></div>
         </section>
 
-        <section class="chart-card" id="radar-chart-card">
+        <!-- View 3: Candidate Explorer -->
+        <section class="chart-card" id="explorer-card">
             <div class="card-header">
-                <h2>Material Properties Profile</h2>
-                <p>Compare mechanical and thermophysical properties.</p>
+                <h2>3. Candidate Explorer</h2>
+                <p>View brushed candidates or click to profile.</p>
+                <div class="controls-row" id="explorer-controls"></div>
             </div>
-            <div class="chart-container" id="radar-chart-container"></div>
+            <div class="chart-container" id="explorer-container"></div>
         </section>
 
-        <!-- Bottom row: Correlation and Trade-offs -->
-        <section class="chart-card" id="scatter-plot-card">
+        <!-- View 4: Alloy Profile -->
+        <section class="chart-card" id="profile-card">
             <div class="card-header">
-                <h2>Correlation Analysis</h2>
-                <p>Explore direct relationships between two variables.</p>
-                <div class="controls-row" id="scatter-controls"></div>
+                <h2>4. Alloy Profile</h2>
+                <p>Compare selected alloy vs average.</p>
             </div>
-            <div class="chart-container" id="scatter-plot-container"></div>
+            <div class="chart-container" style="display:flex;">
+                <div id="radar-chart-container" style="flex:1; position:relative;"></div>
+                <div id="bar-chart-container" style="flex:1; position:relative;"></div>
+            </div>
         </section>
 
-        <section class="chart-card" id="bubble-chart-card">
+        <!-- View 5: Sensitivity Analysis -->
+        <section class="chart-card" id="sensitivity-card">
             <div class="card-header">
-                <h2>Property Trade-offs</h2>
-                <p>Compare 3-4 properties simultaneously.</p>
-                <div class="controls-row" id="bubble-controls"></div>
+                <h2>5. Sensitivity Analysis</h2>
+                <p>Which inputs most strongly drive a property?</p>
+                <div class="controls-row" id="sensitivity-controls"></div>
             </div>
-            <div class="chart-container" id="bubble-chart-container"></div>
+            <div class="chart-container" id="sensitivity-container"></div>
         </section>
     </main>
 
     <!-- Custom Scripts -->
+    <script src="js/appState.js"></script>
     <script src="js/api.js"></script>
     <script src="js/domUtils.js"></script>
+    
     <script src="js/charts/parallelCoords.js"></script>
-    <script src="js/charts/barChart.js"></script>
+    <script src="js/charts/heatmap.js"></script>
+    <script src="js/charts/candidateExplorer.js"></script>
     <script src="js/charts/radarChart.js"></script>
-    <script src="js/charts/scatterPlot.js"></script>
-    <script src="js/charts/bubbleChart.js"></script>
+    <script src="js/charts/barChart.js"></script>
+    <script src="js/charts/sensitivityBar.js"></script>
+    
     <script src="js/main.js"></script>
 </body>
 </html>
