@@ -131,7 +131,7 @@ async function renderCandidateExplorer() {
 
     buildControlGroup(controls, "X Axis:", "explorer-x-select", numericalColumns, xDefault);
     buildControlGroup(controls, "Y Axis:", "explorer-y-select", numericalColumns, yDefault);
-    buildControlGroup(controls, "Bubble Size:", "explorer-z-select", ["None", ...numericalColumns], "None");
+    buildControlGroup(controls, "Encode Magnitude:", "explorer-z-select", ["None", ...numericalColumns], "None");
 
     const refreshExplorer = async () => {
         const x = document.getElementById("explorer-x-select").value;
