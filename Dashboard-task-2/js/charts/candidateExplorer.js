@@ -128,7 +128,13 @@ function drawCandidateExplorer(data, containerSelector, xCol, yCol, zCol = null,
         })
         .on("mousemove", (event) => {
             const [mx, my] = d3.pointer(event, container.node());
-            tooltip.style("left", (mx + 15) + "px").style("top", (my - 20) + "px");
+            const containerWidth = container.node().clientWidth;
+            
+            // If near the right edge, flip tooltip to the left side of the cursor
+            // The candidate tooltip can be wider, so we use a larger threshold
+            const leftPos = (mx > containerWidth - 200) ? (mx - 200) : (mx + 15);
+            
+            tooltip.style("left", leftPos + "px").style("top", (my - 20) + "px");
         })
         .on("mouseout", (event, d) => {
             tooltip.transition().duration(400).style("opacity", 0);

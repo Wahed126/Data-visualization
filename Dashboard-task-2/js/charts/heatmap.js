@@ -43,12 +43,13 @@ function drawHeatmap(data, containerSelector) {
         .attr("class", "heatmap-tooltip")
         .style("opacity", 0)
         .style("position", "absolute")
-        .style("background", "rgba(0,0,0,0.8)")
+        .style("background", "rgba(15,23,42,0.92)")
         .style("color", "white")
-        .style("padding", "5px")
-        .style("border-radius", "4px")
+        .style("padding", "6px 10px")
+        .style("border-radius", "6px")
         .style("font-size", "12px")
-        .style("pointer-events", "none");
+        .style("pointer-events", "none")
+        .style("z-index", "100");
 
     // Flatten data for D3
     const flatData = [];
@@ -78,7 +79,13 @@ function drawHeatmap(data, containerSelector) {
         })
         .on("mousemove", (event) => {
             const [mouseX, mouseY] = d3.pointer(event, container.node());
-            tooltip.style("left", (mouseX + 15) + "px")
+            const containerWidth = container.node().clientWidth;
+            
+            // If near the right edge, flip tooltip to the left side of the cursor
+            // Assumes tooltip is max ~140px wide
+            const leftPos = (mouseX > containerWidth - 150) ? (mouseX - 160) : (mouseX + 15);
+            
+            tooltip.style("left", leftPos + "px")
                    .style("top", (mouseY - 20) + "px");
         })
         .on("mouseout", (event, d) => {
