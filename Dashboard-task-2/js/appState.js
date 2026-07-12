@@ -1,40 +1,47 @@
 /**
  * appState.js
  * Global state manager and event bus.
- * Allows independent charts to communicate (e.g. brushing in Parallel Coords
- * updates the Scatter Plot and Radar Chart).
  */
 
 class AppState {
     constructor() {
         this.state = {
-            brushedData: [],     // Points selected by brush (or all if none)
-            selectedPoint: null, // A single point clicked by the user
-            colorBy: null,       // Current property used for coloring
+            brushedData:   [],
+            brushedRanges: {},
+            selectedPoint: null,
+            colorBy:       null,
         };
         this.listeners = {};
     }
 
-    // Subscribe to an event
     on(event, callback) {
-        if (!this.listeners[event]) {
-            this.listeners[event] = [];
-        }
+        if (!this.listeners[event]) this.listeners[event] = [];
         this.listeners[event].push(callback);
     }
 
-    // Fire an event
+    /** Remove a specific callback (use named function references) */
+    off(event, callback) {
+        if (!this.listeners[event]) return;
+        this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
+    }
+
+    /** Nuclear option — remove ALL listeners for an event. Use sparingly. */
+    clearListeners(event) {
+        this.listeners[event] = [];
+    }
+
     emit(event, data) {
         if (this.listeners[event]) {
-            this.listeners[event].forEach(cb => cb(data));
+            [...this.listeners[event]].forEach(cb => cb(data));
         }
     }
 
     // --- State Setters ---
 
-    setBrushedData(data) {
-        this.state.brushedData = data;
-        this.emit("brushChange", data);
+    setBrushedData(data, ranges = {}) {
+        this.state.brushedData   = data;
+        this.state.brushedRanges = ranges;
+        this.emit("brushChange", { data, ranges });
     }
 
     setSelectedPoint(point) {
@@ -48,5 +55,4 @@ class AppState {
     }
 }
 
-// Export singleton instance
 const appState = new AppState();

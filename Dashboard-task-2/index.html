@@ -63,11 +63,15 @@
         <section class="chart-card" id="profile-card">
             <div class="card-header">
                 <h2>4. Alloy Profile</h2>
-                <p>Compare selected alloy vs average.</p>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                    <p style="margin:0">Compare selected alloy vs average.</p>
+                    <span id="profile-title" style="font-size:12px;font-weight:600;color:var(--chart-4);opacity:0.85">Click any point to profile it</span>
+                    <button id="reset-profile-btn" style="font-size:11px;padding:3px 10px;" disabled>Reset Profile</button>
+                </div>
             </div>
-            <div class="chart-container" style="display:flex;">
-                <div id="radar-chart-container" style="flex:1; position:relative;"></div>
-                <div id="bar-chart-container" style="flex:1; position:relative;"></div>
+            <div class="chart-container profile-charts-container">
+                <div id="radar-chart-container" style="flex:1; position:relative; min-height: 300px;"></div>
+                <div id="bar-chart-container" style="flex:1; position:relative; min-height: 300px;"></div>
             </div>
         </section>
 

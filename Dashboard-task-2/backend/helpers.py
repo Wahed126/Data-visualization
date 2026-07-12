@@ -129,28 +129,35 @@ class DataHelper:
 
     def get_two_col_sample(self, x: str, y: str, n: int = 5000) -> list[dict]:
         """
-        Return only two columns for the Scatter Plot, with NaN rows dropped.
-        Sending only 2 columns × n rows keeps the payload tiny.
+        Return x, y, plus all element and key property columns so that
+        a clicked point contains full profile data for the Alloy Profile view.
         """
         self.load_data()
         for col in (x, y):
             if col not in self.df.columns:
                 raise ValueError(f"Column '{col}' not found in dataset")
-        subset = self.df[[x, y]].dropna()
+        # Always include profile columns alongside the requested axes
+        profile_cols = [c for c in ELEMENT_COLS + MECH_COLS + THERMO_COLS + PHASE_COLS
+                        if c in self.df.columns]
+        all_cols = list(dict.fromkeys([x, y] + profile_cols))  # deduplicated, order preserved
+        subset = self.df[all_cols].dropna(subset=[x, y])
         if len(subset) > n:
             subset = subset.sample(n=n, random_state=42)
         return self._to_records(subset)
 
     def get_three_col_sample(self, x: str, y: str, z: str, n: int = 5000) -> list[dict]:
         """
-        Return only three columns for the Bubble Chart, with NaN rows dropped.
-        Sending only 3 columns × n rows keeps the payload tiny.
+        Return x, y, z, plus all element and key property columns so that
+        a clicked point contains full profile data for the Alloy Profile view.
         """
         self.load_data()
         for col in (x, y, z):
             if col not in self.df.columns:
                 raise ValueError(f"Column '{col}' not found in dataset")
-        subset = self.df[[x, y, z]].dropna()
+        profile_cols = [c for c in ELEMENT_COLS + MECH_COLS + THERMO_COLS + PHASE_COLS
+                        if c in self.df.columns]
+        all_cols = list(dict.fromkeys([x, y, z] + profile_cols))
+        subset = self.df[all_cols].dropna(subset=[x, y, z])
         if len(subset) > n:
             subset = subset.sample(n=n, random_state=42)
         return self._to_records(subset)
@@ -323,3 +330,42 @@ class DataHelper:
         results.sort(key=lambda x: x["abs_r"], reverse=True)
         return results
 
+    def get_nearest_alloy(self, x_col: str, x_val: float,
+                          y_col: str | None = None, y_val: float | None = None) -> dict:
+        """
+        Find the dataset row nearest to (x_val, y_val) using normalised L2 distance.
+        Returns ALL columns for that row so the frontend can render the full Alloy Profile
+        regardless of which axes are selected in the Candidate Explorer.
+        """
+        self.load_data()
+        if x_col not in self.df.columns:
+            raise ValueError(f"Column '{x_col}' not found")
+
+        cols = [x_col]
+        vals = [x_val]
+        if y_col and y_col in self.df.columns and y_val is not None:
+            cols.append(y_col)
+            vals.append(y_val)
+
+        sub = self.df[cols].dropna()
+
+        # Normalised Euclidean distance — avoids scale bias between columns
+        dist = None
+        for col, val in zip(cols, vals):
+            col_range = float(sub[col].max() - sub[col].min()) or 1.0
+            term = ((sub[col] - val) / col_range) ** 2
+            dist = term if dist is None else dist + term
+
+        nearest_idx = dist.idxmin()
+        row = self.df.loc[nearest_idx]
+
+        # Serialise safely
+        result = {}
+        for k, v in row.items():
+            if isinstance(v, (np.integer,)):
+                result[k] = int(v)
+            elif isinstance(v, (np.floating, float)):
+                result[k] = None if np.isnan(v) else float(v)
+            else:
+                result[k] = v
+        return result

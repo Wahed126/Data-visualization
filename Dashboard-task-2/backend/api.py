@@ -145,3 +145,26 @@ def get_columns():
         })
     except Exception as e:
         return error_response(str(e))
+
+
+# ──────────────────────────────────────────────────────────────────
+# Alloy Profile — full row lookup for Radar + Bar on point click
+# ?x_col=<col>&x_val=<float>  (required)
+# ?y_col=<col>&y_val=<float>  (optional — improves precision)
+# Returns ALL columns for the nearest matching alloy in the dataset.
+# ──────────────────────────────────────────────────────────────────
+@api_bp.route('/alloy/profile', methods=['GET'])
+def alloy_profile():
+    try:
+        x_col = request.args.get('x_col')
+        x_val = request.args.get('x_val', type=float)
+        y_col = request.args.get('y_col')
+        y_val = request.args.get('y_val', type=float)
+
+        if not x_col or x_val is None:
+            return error_response("'x_col' and 'x_val' are required", 400)
+
+        result = data_helper.get_nearest_alloy(x_col, x_val, y_col, y_val)
+        return jsonify(result)
+    except Exception as e:
+        return error_response(str(e))

@@ -82,4 +82,21 @@ const api = {
      */
     getSensitivityData: (target) =>
         apiFetch(`/chart/sensitivity?target=${encodeURIComponent(target)}`),
+
+    /**
+     * Alloy Profile Lookup
+     * Returns ALL columns for the nearest alloy to the clicked scatter point.
+     * Used by Radar + Bar charts so they always have complete element + property data.
+     * @param {string} xCol - column name of the X axis in Explorer
+     * @param {number} xVal - x value of the clicked point
+     * @param {string} yCol - column name of the Y axis in Explorer
+     * @param {number} yVal - y value of the clicked point
+     */
+    getFullProfile: (xCol, xVal, yCol, yVal) => {
+        let url = `/alloy/profile?x_col=${encodeURIComponent(xCol)}&x_val=${xVal}`;
+        if (yCol && yVal !== undefined) {
+            url += `&y_col=${encodeURIComponent(yCol)}&y_val=${yVal}`;
+        }
+        return apiFetch(url);
+    },
 };

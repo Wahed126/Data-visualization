@@ -1,8 +1,16 @@
 /**
  * parallelCoords.js
- * Draws a parallel coordinates plot with axis brushing.
- * Brushing an axis filters the data and emits the selection to AppState.
+ * Parallel coordinates with axis brushing.
+ *
+ * Emits: brushChange { data, ranges }
+ * Listens: colorChange (re-color lines), brushChange with empty data (external reset)
+ *
+ * Uses named listener refs + appState.off() so redraw doesn't stack listeners.
  */
+
+// Module-level listener references so we can remove them on redraw
+let _pc_colorListener   = null;
+let _pc_brushListener   = null;
 
 function drawParallelCoordinates(data, containerSelector) {
     const container = d3.select(containerSelector);
@@ -10,149 +18,160 @@ function drawParallelCoordinates(data, containerSelector) {
 
     if (!data || data.length === 0) return;
 
-    // Use full width
+    // Remove old listeners before re-registering
+    if (_pc_colorListener)  appState.off("colorChange",  _pc_colorListener);
+    if (_pc_brushListener)  appState.off("brushChange",  _pc_brushListener);
+
     const margin = { top: 30, right: 50, bottom: 20, left: 50 };
-    const width = container.node().clientWidth - margin.left - margin.right;
-    const height = container.node().clientHeight - margin.top - margin.bottom;
+    const width  = container.node().clientWidth  - margin.left - margin.right;
+    const height = container.node().clientHeight - margin.top  - margin.bottom;
 
     const svg = container.append("svg")
-        .attr("width", width + margin.left + margin.right)
-        .attr("height", height + margin.top + margin.bottom)
+        .attr("width",  width  + margin.left + margin.right)
+        .attr("height", height + margin.top  + margin.bottom)
         .append("g")
         .attr("transform", `translate(${margin.left},${margin.top})`);
 
-    // Dimensions: use keys from first row, except categorical
-    let dimensions = Object.keys(data[0]).filter(d => typeof data[0][d] === "number" && !isNaN(data[0][d]));
-    
-    // Y scales for each dimension
+    const dimensions = Object.keys(data[0]).filter(
+        d => typeof data[0][d] === "number" && !isNaN(data[0][d])
+    );
+
     const y = {};
-    for (let i = 0; i < dimensions.length; i++) {
-        const dim = dimensions[i];
+    for (const dim of dimensions) {
         y[dim] = d3.scaleLinear()
             .domain(d3.extent(data, d => d[dim]))
             .range([height, 0]);
     }
 
-    // X scale
     const x = d3.scalePoint()
         .range([0, width])
         .padding(1)
         .domain(dimensions);
 
-    // Color scale - default to last dim if colorBy is null
     let colorDim = appState.state.colorBy || dimensions[dimensions.length - 1];
-    if (!dimensions.includes(colorDim)) colorDim = dimensions[dimensions.length - 1]; // fallback
+    if (!dimensions.includes(colorDim)) colorDim = dimensions[dimensions.length - 1];
 
     const colorScale = d3.scaleSequential(d3.interpolateViridis)
         .domain(d3.extent(data, d => d[colorDim]));
 
-    // Listen for global color changes
-    appState.on("colorChange", (newColorCol) => {
-        if (dimensions.includes(newColorCol)) {
-            colorScale.domain(d3.extent(data, d => d[newColorCol]));
-            paths.style("stroke", d => colorScale(d[newColorCol]));
-        }
-    });
-
-    // Path generator
     const line = (d) => d3.line()(dimensions.map(p => [x(p), y[p](d[p])]));
 
-    // Draw lines
     const paths = svg.append("g")
         .selectAll("path")
         .data(data)
         .enter()
         .append("path")
         .attr("d", line)
-        .style("fill", "none")
-        .style("stroke", d => colorScale(d[colorDim]))
+        .style("fill",         "none")
+        .style("stroke",       d => colorScale(d[colorDim]))
         .style("stroke-width", 0.8)
-        .style("opacity", 0.3);
+        .style("opacity",      0.3);
 
-    // Store active brushes
-    const activeBrushes = new Map();
+    // ── Brushes ───────────────────────────────────────────────────────────────
+    const brushMap      = new Map(); // dim → brushY instance
+    const selectionMap  = new Map(); // dim → g element (d3 selection)
+    let   _programmaticReset = false; // guard against infinite loop on reset
 
-    // Brush event handler
     function brush() {
-        const actives = [];
-        svg.selectAll(".brush")
-            .filter(function(d) {
-                const b = d3.brushSelection(this);
-                if (b) actives.push({ dim: d, extent: b });
-                return b;
-            });
+        if (_programmaticReset) return; // swallow events fired by our own .move(null)
+
+        const actives   = [];
+        const newRanges = {};
+
+        svg.selectAll(".brush").filter(function(d) {
+            const sel = d3.brushSelection(this);
+            if (sel) {
+                actives.push({ dim: d, extent: sel });
+                newRanges[d] = [y[d].invert(sel[1]), y[d].invert(sel[0])];
+            }
+            return sel;
+        });
 
         let selected = [];
-        
+
         if (actives.length === 0) {
-            // No brushes active
-            paths.style("display", null);
+            paths.style("display", null).style("opacity", 0.3).style("stroke-width", 0.8);
         } else {
-            // Filter paths
             paths.style("display", function(d) {
-                const isActive = actives.every(active => {
-                    const dim = active.dim;
-                    const p = y[dim](d[dim]);
-                    return active.extent[0] <= p && p <= active.extent[1];
+                const pass = actives.every(a => {
+                    const p = y[a.dim](d[a.dim]);
+                    return a.extent[0] <= p && p <= a.extent[1];
                 });
-                
-                if (isActive) selected.push(d);
-                return isActive ? null : "none";
+                if (pass) selected.push(d);
+                return pass ? null : "none";
             });
+            paths.filter(d => selected.includes(d))
+                .style("opacity",      0.75)
+                .style("stroke-width", 1.2);
         }
 
-        // Debounce state emission to avoid freezing the browser while dragging
         clearTimeout(window.brushDebounce);
         window.brushDebounce = setTimeout(() => {
-            appState.setBrushedData(selected);
-        }, 100);
+            appState.setBrushedData(selected, newRanges);
+        }, 120);
     }
 
-    // Draw axes
+    // Draw axes + brushes
     const axes = svg.selectAll(".axis")
         .data(dimensions)
         .enter()
         .append("g")
         .attr("class", "axis")
         .attr("transform", d => `translate(${x(d)},0)`);
-        
+
     axes.each(function(d) {
         d3.select(this).call(d3.axisLeft(y[d]).ticks(5));
-        
-        // Add brush to each axis
-        d3.select(this).append("g")
+
+        const brushY = d3.brushY()
+            .extent([[-8, 0], [8, height]])
+            .on("start brush end", brush);
+
+        const brushG = d3.select(this).append("g")
             .attr("class", "brush")
-            .call(d3.brushY()
-                .extent([[-8, 0], [8, height]])
-                .on("start brush end", brush)
-            );
+            .datum(d)
+            .call(brushY);
+
+        brushMap.set(d, brushY);
+        selectionMap.set(d, brushG);
     });
 
-    // Add axis titles
+    // Axis titles
     axes.append("text")
         .style("text-anchor", "middle")
         .attr("y", -9)
-        .text(d => d.length > 12 ? d.substring(0, 10) + "..." : d)
-        .style("fill", "var(--text-main)")
+        .text(d => d.length > 12 ? d.substring(0, 10) + "…" : d)
+        .style("fill",        "var(--text-main)")
         .style("font-weight", "600")
-        .style("font-size", "10px")
-        .style("cursor", "pointer")
+        .style("font-size",   "10px")
+        .style("cursor",      "pointer")
         .on("click", (event, d) => {
-            // Click axis title to color by it
             appState.setColorBy(d);
-            // Also update the global dropdown UI
             const select = document.getElementById("color-by-select");
             if (select) select.value = d;
         })
         .append("title")
         .text(d => d);
 
-    // External brush clear
-    appState.on("brushChange", (data) => {
-        if (data.length === 0) {
-            // External reset (e.g. from the reset button)
-            svg.selectAll(".brush").call(d3.brush().clear);
-            paths.style("display", null);
+    // ── Register named listeners ───────────────────────────────────────────────
+
+    _pc_colorListener = (newColorCol) => {
+        if (dimensions.includes(newColorCol)) {
+            colorScale.domain(d3.extent(data, d => d[newColorCol]));
+            paths.style("stroke", d => colorScale(d[newColorCol]));
         }
-    });
+    };
+    appState.on("colorChange", _pc_colorListener);
+
+    // React to external brush clear (Reset Selection button)
+    _pc_brushListener = ({ data: brushedData }) => {
+        if (brushedData && brushedData.length === 0) {
+            _programmaticReset = true;
+            selectionMap.forEach((gSel, dim) => {
+                brushMap.get(dim).move(gSel, null);
+            });
+            _programmaticReset = false;
+            paths.style("display", null).style("opacity", 0.3).style("stroke-width", 0.8);
+        }
+    };
+    appState.on("brushChange", _pc_brushListener);
 }
