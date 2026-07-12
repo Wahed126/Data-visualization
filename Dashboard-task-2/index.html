@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,6 +14,7 @@
     <!-- Custom Styles -->
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <header class="app-header">
         <div class="header-content">
@@ -35,7 +37,8 @@
         <section class="chart-card full-width" id="parallel-coords-card">
             <div class="card-header">
                 <h2>1. Multi-Dimensional Alloy Space (Parallel Coordinates)</h2>
-                <p>Filter over 100,000 simulated alloys by dragging along the axes to define precise property targets and uncover manufacturing constraints.</p>
+                <p>Isolate your optimal candidates. Drag along the axes to set strict mechanical thresholds (e.g., high
+                    strength) and instantly reveal the exact scrap input ratios required to achieve them.</p>
             </div>
             <div class="chart-container" id="parallel-coords-container"></div>
         </section>
@@ -44,7 +47,8 @@
         <section class="chart-card" id="heatmap-card">
             <div class="card-header">
                 <h2>2. Global Property Drivers (Correlation Heatmap)</h2>
-                <p>Identify dominant physical relationships across the dataset. Dark blue indicates strong synergy; dark red reveals critical trade-offs.</p>
+                <p>Map the fundamental physics of the alloy space. Deep blue cells highlight chemical synergies you can
+                    exploit, while deep red cells expose critical engineering trade-offs you must navigate.</p>
             </div>
             <div class="chart-container" id="heatmap-container"></div>
         </section>
@@ -53,7 +57,9 @@
         <section class="chart-card" id="explorer-card">
             <div class="card-header">
                 <h2>3. Pareto Front & Trade-off Explorer</h2>
-                <p>Visualize bi-variate mechanical trade-offs (e.g., strength vs. ductility). Discover optimal candidates on the outer edge of the cluster.</p>
+                <p>Navigate the engineering compromises. Plot competing properties to find the Pareto Front—the absolute
+                    physical limit of performance—and spot candidates that balance strength, ductility, and
+                    printability.</p>
                 <div class="controls-row" id="explorer-controls"></div>
             </div>
             <div class="chart-container" id="explorer-container"></div>
@@ -64,9 +70,14 @@
             <div class="card-header">
                 <h2>4. Specific Alloy Fingerprint</h2>
                 <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                    <p style="margin:0">Deep-dive into a single candidate's mechanical footprint (left) and its exact chemical composition breakdown in weight percentages (right).</p>
-                    <span id="profile-title" style="font-size:12px;font-weight:600;color:var(--chart-4);opacity:0.85">Click any point to profile it</span>
-                    <button id="reset-profile-btn" style="font-size:11px;padding:3px 10px;" disabled>Reset Profile</button>
+                    <p style="margin:0">Inspect the physical blueprint of a single candidate. The radar chart benchmarks
+                        its mechanical superiority against the global average, while the bar chart provides the precise
+                        chemical recipe to physically cast it.</p>
+                    <span id="profile-title"
+                        style="font-size:12px;font-weight:600;color:var(--chart-4);opacity:0.85">Click any point to
+                        profile it</span>
+                    <button id="reset-profile-btn" style="font-size:11px;padding:3px 10px;" disabled>Reset
+                        Profile</button>
                 </div>
             </div>
             <div class="chart-container profile-charts-container">
@@ -79,7 +90,8 @@
         <section class="chart-card" id="sensitivity-card">
             <div class="card-header">
                 <h2>5. Engineering Sensitivity Analysis</h2>
-                <p>Discover your most powerful engineering levers. Ranked by Spearman correlation to reveal which scrap elements drive the chosen target.</p>
+                <p>Spearman correlation reveals which elements improve performance (blue) and which impurities
+                    negatively affect material properties (red).</p>
                 <div class="controls-row" id="sensitivity-controls"></div>
             </div>
             <div class="chart-container" id="sensitivity-container"></div>
@@ -90,14 +102,15 @@
     <script src="js/appState.js"></script>
     <script src="js/api.js"></script>
     <script src="js/domUtils.js"></script>
-    
+
     <script src="js/charts/parallelCoords.js"></script>
     <script src="js/charts/heatmap.js"></script>
     <script src="js/charts/candidateExplorer.js"></script>
     <script src="js/charts/radarChart.js"></script>
     <script src="js/charts/barChart.js"></script>
     <script src="js/charts/sensitivityBar.js"></script>
-    
+
     <script src="js/main.js"></script>
 </body>
+
 </html>
