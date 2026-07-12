@@ -34,8 +34,8 @@
         <!-- View 1: Pipeline Overview -->
         <section class="chart-card full-width" id="parallel-coords-card">
             <div class="card-header">
-                <h2>1. Pipeline Overview (Parallel Coordinates)</h2>
-                <p>Brush axes to filter candidates across all views.</p>
+                <h2>1. Multi-Dimensional Alloy Space (Parallel Coordinates)</h2>
+                <p>Filter over 100,000 simulated alloys by dragging along the axes to define precise property targets and uncover manufacturing constraints.</p>
             </div>
             <div class="chart-container" id="parallel-coords-container"></div>
         </section>
@@ -43,8 +43,8 @@
         <!-- View 2: Correlation Heatmap -->
         <section class="chart-card" id="heatmap-card">
             <div class="card-header">
-                <h2>2. Correlation Heatmap</h2>
-                <p>Click any cell to explore that relationship.</p>
+                <h2>2. Global Property Drivers (Correlation Heatmap)</h2>
+                <p>Identify dominant physical relationships across the dataset. Dark blue indicates strong synergy; dark red reveals critical trade-offs.</p>
             </div>
             <div class="chart-container" id="heatmap-container"></div>
         </section>
@@ -52,8 +52,8 @@
         <!-- View 3: Candidate Explorer -->
         <section class="chart-card" id="explorer-card">
             <div class="card-header">
-                <h2>3. Candidate Explorer</h2>
-                <p>View brushed candidates or click to profile.</p>
+                <h2>3. Pareto Front & Trade-off Explorer</h2>
+                <p>Visualize bi-variate mechanical trade-offs (e.g., strength vs. ductility). Discover optimal candidates on the outer edge of the cluster.</p>
                 <div class="controls-row" id="explorer-controls"></div>
             </div>
             <div class="chart-container" id="explorer-container"></div>
@@ -62,9 +62,9 @@
         <!-- View 4: Alloy Profile -->
         <section class="chart-card" id="profile-card">
             <div class="card-header">
-                <h2>4. Alloy Profile</h2>
+                <h2>4. Specific Alloy Fingerprint</h2>
                 <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                    <p style="margin:0">Compare selected alloy vs average.</p>
+                    <p style="margin:0">Deep-dive into a single candidate's mechanical footprint (left) and its exact chemical composition breakdown in weight percentages (right).</p>
                     <span id="profile-title" style="font-size:12px;font-weight:600;color:var(--chart-4);opacity:0.85">Click any point to profile it</span>
                     <button id="reset-profile-btn" style="font-size:11px;padding:3px 10px;" disabled>Reset Profile</button>
                 </div>
@@ -78,8 +78,8 @@
         <!-- View 5: Sensitivity Analysis -->
         <section class="chart-card" id="sensitivity-card">
             <div class="card-header">
-                <h2>5. Sensitivity Analysis</h2>
-                <p>Which inputs most strongly drive a property?</p>
+                <h2>5. Engineering Sensitivity Analysis</h2>
+                <p>Discover your most powerful engineering levers. Ranked by Spearman correlation to reveal which scrap elements drive the chosen target.</p>
                 <div class="controls-row" id="sensitivity-controls"></div>
             </div>
             <div class="chart-container" id="sensitivity-container"></div>
