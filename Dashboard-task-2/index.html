@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alloy Discovery Dashboard</title>
+    <!-- Modern Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <header class="app-header">
+        <div class="header-content">
+            <h1>Alloy Discovery Dashboard</h1>
+            <p>SciVis 2025: Scrap-to-Alloy Pipeline Exploration</p>
+        </div>
+        <div class="filter-controls">
+            <div id="selection-status">All Alloys (100,000+)</div>
+            <button id="reset-brush-btn" disabled>Reset Selection</button>
+            <label for="color-by-select">Visualize Dimension:</label>
+            <select id="color-by-select"></select>
+        </div>
+        <div class="upload-controls">
+            <span id="app-status" style="font-weight: 600;">Connecting to Backend...</span>
+        </div>
+    </header>
+
+    <main class="dashboard-grid">
+        <!-- View 1: Pipeline Overview -->
+        <section class="chart-card full-width" id="parallel-coords-card">
+            <div class="card-header">
+                <h2>1. Multi-Dimensional Alloy Space (Parallel Coordinates)</h2>
+                <p>Isolate your optimal candidates. Drag along the axes to set strict mechanical thresholds (e.g., high
+                    strength) and instantly reveal the exact scrap input ratios required to achieve them.</p>
+            </div>
+            <div class="chart-container" id="parallel-coords-container"></div>
+        </section>
+
+        <!-- View 2: Correlation Heatmap -->
+        <section class="chart-card" id="heatmap-card">
+            <div class="card-header">
+                <h2>2. Global Property Drivers (Correlation Heatmap)</h2>
+                <p>Map the fundamental physics of the alloy space. Deep blue cells highlight chemical synergies you can
+                    exploit, while deep red cells expose critical engineering trade-offs you must navigate.</p>
+            </div>
+            <div class="chart-container" id="heatmap-container"></div>
+        </section>
+
+        <!-- View 3: Candidate Explorer -->
+        <section class="chart-card" id="explorer-card">
+            <div class="card-header">
+                <h2>3. Pareto Front & Trade-off Explorer</h2>
+                <p>Navigate the engineering compromises. Plot competing properties to find the Pareto Front—the absolute
+                    physical limit of performance—and spot candidates that balance strength, ductility, and
+                    printability.</p>
+                <div class="controls-row" id="explorer-controls"></div>
+            </div>
+            <div class="chart-container" id="explorer-container"></div>
+        </section>
+
+        <!-- View 4: Alloy Profile -->
+        <section class="chart-card" id="profile-card">
+            <div class="card-header">
+                <h2>4. Specific Alloy Fingerprint</h2>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                    <p style="margin:0">Inspect the physical blueprint of a single candidate. The radar chart benchmarks
+                        its mechanical superiority against the global average, while the bar chart provides the precise
+                        chemical recipe to physically cast it.</p>
+                    <span id="profile-title"
+                        style="font-size:12px;font-weight:600;color:var(--chart-4);opacity:0.85">Click any point to
+                        profile it</span>
+                    <button id="reset-profile-btn" style="font-size:11px;padding:3px 10px;" disabled>Reset
+                        Profile</button>
+                </div>
+            </div>
+            <div class="chart-container profile-charts-container">
+                <div id="radar-chart-container" style="flex:1; position:relative; min-height: 300px;"></div>
+                <div id="bar-chart-container" style="flex:1; position:relative; min-height: 300px;"></div>
+            </div>
+        </section>
+
+        <!-- View 5: Sensitivity Analysis -->
+        <section class="chart-card" id="sensitivity-card">
+            <div class="card-header">
+                <h2>5. Engineering Sensitivity Analysis</h2>
+                <p>Spearman correlation reveals which elements improve performance (blue) and which impurities
+                    negatively affect material properties (red).</p>
+                <div class="controls-row" id="sensitivity-controls"></div>
+            </div>
+            <div class="chart-container" id="sensitivity-container"></div>
+        </section>
+    </main>
+
+    <!-- Custom Scripts -->
+    <script src="js/appState.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/domUtils.js"></script>
+
+    <script src="js/charts/parallelCoords.js"></script>
+    <script src="js/charts/heatmap.js"></script>
+    <script src="js/charts/candidateExplorer.js"></script>
+    <script src="js/charts/radarChart.js"></script>
+    <script src="js/charts/barChart.js"></script>
+    <script src="js/charts/sensitivityBar.js"></script>
+
+    <script src="js/main.js"></script>
+</body>
+
+</html>
